@@ -8,6 +8,11 @@ A TypeScript application that integrates the Google Gemini API to generate struc
 - Generates Hebrew summaries from text input.
 - Uses customized prompts to control the structure and length of AI responses.
 - Loads API credentials from environment variables.
+- Provides an Express REST API for document summarization.
+- Validates incoming document content.
+- Retries temporary Gemini API failures.
+- Includes automated tests for health checks, input validation,
+  successful summaries, and error handling.
 
 ## Technologies
 
@@ -17,6 +22,9 @@ A TypeScript application that integrates the Google Gemini API to generate struc
 - `@google/genai`
 - `dotenv`
 - `tsx`
+- Express
+- Vitest
+- Supertest
 
 ## Getting Started
 
