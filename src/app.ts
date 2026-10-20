@@ -1,11 +1,53 @@
 import express from "express";
 import { summarizeDocument } from "./services/geminiService.js";
+import multer from "multer";
+import { extractTextFromPdf } from "./services/pdfService.js";
 
 const app = express();
-const PORT = 3000;
 
 // Parse incoming JSON request bodies
 app.use(express.json());
+
+// Configure PDF uploads in memory with a 5 MB size limit
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
+// Handle file upload errors before the route handler
+const handlePdfUpload = (
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+) => {
+  upload.single("file")(req, res, (error) => {
+    if (error instanceof multer.MulterError) {
+      // Return 413 when the uploaded file exceeds 5 MB
+      if (error.code === "LIMIT_FILE_SIZE") {
+        return res.status(413).json({
+          success: false,
+          error: "File size must not exceed 5 MB",
+        });
+      }
+
+      // Return 400 for other Multer upload errors
+      return res.status(400).json({
+        success: false,
+        error: "File upload failed",
+      });
+    }
+
+    // Forward unexpected upload errors to Express
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        error: "File upload failed",
+      });
+    }
+
+    next();
+  });
+};
 
 // Check that the server is running
 app.get("/api/health", (_req, res) => {
@@ -44,6 +86,41 @@ app.post("/api/documents/summary", async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Failed to summarize document",
+    });
+  }
+});
+
+// Upload a PDF and generate a Hebrew summary
+app.post("/api/documents/upload", handlePdfUpload, async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      error: "A PDF file is required",
+    });
+  }
+
+  // Reject files that are not identified as PDFs
+  if (req.file.mimetype !== "application/pdf") {
+    return res.status(400).json({
+      success: false,
+      error: "Only PDF files are supported",
+    });
+  }
+
+  try {
+    const content = await extractTextFromPdf(req.file.buffer);
+    const summary = await summarizeDocument(content);
+
+    return res.status(200).json({
+      success: true,
+      summary,
+    });
+  } catch (error) {
+    console.error("Failed to process PDF:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: "Failed to process PDF",
     });
   }
 });
