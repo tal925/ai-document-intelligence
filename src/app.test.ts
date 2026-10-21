@@ -481,11 +481,6 @@ describe("POST /api/documents/ask", () => {
     // Simulate a search that returns no relevant results.
     vi.mocked(semanticSearchPrepared).mockResolvedValue([]);
 
-    // Simulate an answer indicating that there is insufficient information.
-    vi.mocked(answerQuestion).mockResolvedValue(
-      "אין מספיק מידע במסמך כדי לענות על השאלה.",
-    );
-
     const response = await request(app).post("/api/documents/ask").send({
       documentId,
       question: "What information is missing?",
@@ -500,9 +495,7 @@ describe("POST /api/documents/ask", () => {
     );
 
     expect(semanticSearchPrepared).toHaveBeenCalledOnce();
-    expect(answerQuestion).toHaveBeenCalledWith(
-      "What information is missing?",
-      [],
-    );
+
+    expect(answerQuestion).not.toHaveBeenCalled();
   });
 });

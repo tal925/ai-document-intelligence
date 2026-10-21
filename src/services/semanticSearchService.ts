@@ -1,4 +1,3 @@
-
 import { generateEmbedding } from "./embeddingService.js";
 import { cosineSimilarity } from "./similarityService.js";
 import type { TextChunk } from "./chunkingService.js";
@@ -23,6 +22,9 @@ export async function prepareChunks(
     })),
   );
 }
+
+// Minimum similarity score for a relevant search result.
+export const MIN_SIMILARITY_SCORE = 0.5;
 
 // Search chunks whose embeddings have already been calculated.
 export async function semanticSearchPrepared(
@@ -50,7 +52,10 @@ export async function semanticSearchPrepared(
     score: cosineSimilarity(queryEmbedding, chunk.embedding),
   }));
 
-  return results.sort((a, b) => b.score - a.score).slice(0, topK);
+  return results
+    .filter((result) => result.score >= MIN_SIMILARITY_SCORE)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK);
 }
 
 // Keep the original function working for existing callers.

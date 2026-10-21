@@ -5,7 +5,10 @@ vi.mock("./embeddingService.js", () => ({
 }));
 
 import { generateEmbedding } from "./embeddingService.js";
-import { semanticSearch } from "./semanticSearchService.js";
+import {
+  semanticSearch,
+  semanticSearchPrepared,
+} from "./semanticSearchService.js";
 import type { TextChunk } from "./chunkingService.js";
 
 const mockGenerateEmbedding = vi.mocked(generateEmbedding);
@@ -31,7 +34,7 @@ describe("semanticSearch", () => {
       }
 
       if (text === "The office is open from Sunday to Thursday.") {
-        return [0, 1];
+        return [0.6, 0.8];
       }
 
       throw new Error(`Unexpected text: ${text}`);
@@ -49,7 +52,7 @@ describe("semanticSearch", () => {
     mockGenerateEmbedding
       .mockResolvedValueOnce([1, 0])
       .mockResolvedValueOnce([1, 0])
-      .mockResolvedValueOnce([0, 1]);
+      .mockResolvedValueOnce([0.6, 0.8]);
 
     const results = await semanticSearch("Office question", chunks, 1);
 
@@ -74,5 +77,36 @@ describe("semanticSearch", () => {
     await expect(semanticSearch("Question", chunks, 0)).rejects.toThrow(
       "topK must be a positive integer",
     );
+  });
+});
+
+describe("semanticSearchPrepared", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should filter out chunks below the minimum similarity score", async () => {
+    const preparedChunks = [
+      {
+        index: 0,
+        content: "Relevant information",
+        embedding: [1, 0],
+      },
+      {
+        index: 1,
+        content: "Irrelevant information",
+        embedding: [0, 1],
+      },
+    ];
+
+    mockGenerateEmbedding.mockResolvedValue([1, 0]);
+
+    const results = await semanticSearchPrepared(
+      "Relevant question",
+      preparedChunks,
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0]?.index).toBe(0);
   });
 });

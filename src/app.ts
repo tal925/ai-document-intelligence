@@ -241,9 +241,21 @@ app.post("/api/documents/ask", async (req, res) => {
     // Find the most relevant chunks
     const results = await semanticSearchPrepared(question, embeddedChunks);
 
+    // Return a fallback answer when no relevant chunks are found.
+    if (results.length === 0) {
+      return res.status(200).json({
+        success: true,
+        documentId,
+        question,
+        answer: "אין מספיק מידע במסמך כדי לענות על השאלה.",
+        sources: [],
+      });
+    }
+
     // Generate an answer based on the retrieved chunks
     const answer = await answerQuestion(question, results);
 
+    // Return the generated answer and its sources
     return res.status(200).json({
       success: true,
       documentId,
