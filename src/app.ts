@@ -2,6 +2,7 @@ import express from "express";
 import { summarizeDocument } from "./services/geminiService.js";
 import multer from "multer";
 import { extractTextFromPdf } from "./services/pdfService.js";
+import { chunkText } from "./services/chunkingService.js";
 
 const app = express();
 
@@ -109,7 +110,14 @@ app.post("/api/documents/upload", handlePdfUpload, async (req, res) => {
 
   try {
     const content = await extractTextFromPdf(req.file.buffer);
-    const summary = await summarizeDocument(content);
+
+    // Split the extracted document into smaller chunks.
+    const chunks = chunkText(content);
+
+    // Join the chunks to preserve the existing summarization behavior.
+    const summary = await summarizeDocument(
+      chunks.map((chunk) => chunk.content).join("\n"),
+    );
 
     return res.status(200).json({
       success: true,

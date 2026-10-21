@@ -1,14 +1,4 @@
-import "dotenv/config";
-import { GoogleGenAI } from "@google/genai";
-
-// Initialize the Gemini client
-const apiKey = process.env.GEMINI_API_KEY;
-
-if (!apiKey) {
-  throw new Error("Missing GEMINI_API_KEY in .env");
-}
-
-const ai = new GoogleGenAI({ apiKey });
+import { ai } from "./geminiClient.js";
 
 // Generate a summary with retries for temporary errors
 export async function summarizeDocument(content: string): Promise<string> {

@@ -1,17 +1,19 @@
 # AI Document Intelligence
 
-A TypeScript-based document processing API that uses Google Gemini to generate structured Hebrew summaries from text and PDF documents.
+A TypeScript-based document processing API that uses Google Gemini to generate structured Hebrew summaries from text and PDF documents. The project also includes text chunking, vector embeddings, and cosine similarity calculations as foundations for semantic search and Retrieval-Augmented Generation (RAG).
 
 ## Features
 
-- **AI-powered summarization** using the Google Gemini API.
-- **PDF text extraction** from text-based PDF documents.
-- **Hebrew summaries** generated from document content.
-- **REST API** built with Express and TypeScript.
-- **Input validation** for text content and uploaded files.
-- **File size limit** of 5 MB per uploaded PDF.
-- **Error handling and retry logic** for temporary Gemini API failures.
-- **Automated API tests** using Vitest and Supertest.
+- **AI-Powered Summarization** — Generates structured Hebrew summaries using the Google Gemini API.
+- **PDF Processing** — Extracts text from uploaded PDF documents.
+- **Text Chunking** — Splits document content into smaller chunks for downstream processing.
+- **Vector Embeddings** — Converts text into numerical vector representations using Gemini Embeddings.
+- **Cosine Similarity** — Calculates similarity between vectors to support semantic retrieval.
+- **REST API** — Provides document processing endpoints using Express and TypeScript.
+- **Input Validation** — Validates text input and uploaded PDF files.
+- **File Size Limits** — Restricts PDF uploads to a maximum of 5 MB.
+- **Error Handling and Retries** — Handles temporary Gemini API failures with retry logic.
+- **Automated Testing** — Includes unit and API tests using Vitest and Supertest.
 
 ## Technologies
 
@@ -19,9 +21,9 @@ A TypeScript-based document processing API that uses Google Gemini to generate s
 - Node.js
 - Express
 - Google Gemini API (`@google/genai`)
-- `dotenv`
-- `pdf-parse`
-- `multer`
+- dotenv
+- pdf-parse
+- multer
 - Vitest
 - Supertest
 
@@ -68,11 +70,11 @@ npm test
 
 ## API Endpoints
 
-| Method | Endpoint                 | Description                                                |
-| ------ | ------------------------ | ---------------------------------------------------------- |
-| GET    | `/api/health`            | Checks server availability                                 |
-| POST   | `/api/documents/summary` | Generates a summary from text provided in the request body |
-| POST   | `/api/documents/upload`  | Uploads a PDF, extracts its text, and generates a summary  |
+| Method | Endpoint                 | Description                                                 |
+| ------ | ------------------------ | ----------------------------------------------------------- |
+| `GET`  | `/api/health`            | Checks server availability.                                 |
+| `POST` | `/api/documents/summary` | Generates a summary from text provided in the request body. |
+| `POST` | `/api/documents/upload`  | Uploads a PDF, extracts its text, and generates a summary.  |
 
 ### Text Summarization Request
 
@@ -96,17 +98,22 @@ Only PDF files are accepted, with a maximum size of 5 MB.
 
 - Text-based document summarization.
 - PDF upload and text extraction.
-- Hebrew summary generation.
-- REST API endpoints.
-- Upload validation and file size limits.
-- Automated tests for successful requests and error handling.
+- Hebrew summary generation using Gemini.
+- Configurable text chunking.
+- Vector embedding generation using Gemini Embeddings.
+- Cosine similarity calculation.
+- REST API endpoints and input validation.
+- File size limits and error handling.
 - Retry logic for temporary Gemini API failures.
+- Automated unit and API tests.
 
 ### Planned
 
-- Support for additional document formats.
-- Retrieval-Augmented Generation (RAG) for answering questions based on document content.
+- Semantic search to retrieve relevant document chunks based on a query.
+- Retrieval-Augmented Generation (RAG) for answering questions using document content.
 - Source references and citations in generated answers.
+- Persistent vector storage.
+- Support for additional document formats.
 
 ## License
 
