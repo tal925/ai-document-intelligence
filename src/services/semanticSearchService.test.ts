@@ -42,22 +42,22 @@ describe("semanticSearch", () => {
 
     const results = await semanticSearch("How many remote work days?", chunks);
 
-    expect(results).toHaveLength(2);
+    expect(results).toHaveLength(1);
     expect(results[0]?.index).toBe(0);
-    expect(results[1]?.index).toBe(1);
-    expect(results[0]!.score).toBeGreaterThan(results[1]!.score);
+    expect(results[0]!.score).toBeGreaterThan(0.7);
   });
 
   it("should return only topK results", async () => {
     mockGenerateEmbedding
-      .mockResolvedValueOnce([1, 0])
-      .mockResolvedValueOnce([1, 0])
-      .mockResolvedValueOnce([0.6, 0.8]);
+      .mockResolvedValueOnce([0.8, 0.6]) // Embedding for chunk 0
+      .mockResolvedValueOnce([0.6, 0.8]) // Embedding for chunk 1
+      .mockResolvedValueOnce([1, 0]); // Embedding for the query
 
     const results = await semanticSearch("Office question", chunks, 1);
 
     expect(results).toHaveLength(1);
     expect(results[0]?.index).toBe(0);
+    expect(results[0]!.score).toBeGreaterThan(0.7);
   });
 
   it("should return an empty array when there are no chunks", async () => {

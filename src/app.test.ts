@@ -9,25 +9,25 @@ import {
   semanticSearchPrepared,
 } from "./services/semanticSearchService.js";
 
-// Replace Gemini with a controllable mock
+// Replace Gemini with controllable mocks.
 vi.mock("./services/geminiService.js", () => ({
   summarizeDocument: vi.fn(),
   answerQuestion: vi.fn(),
 }));
 
-// Replace PDF extraction with a controllable mock
+// Replace PDF extraction with a controllable mock.
 vi.mock("./services/pdfService.js", () => ({
   extractTextFromPdf: vi.fn(),
 }));
 
-// Replace semantic search with a controllable mock
+// Replace semantic search with controllable mocks.
 vi.mock("./services/semanticSearchService.js", () => ({
   semanticSearch: vi.fn(),
   prepareChunks: vi.fn(),
   semanticSearchPrepared: vi.fn(),
 }));
 
-// Reset mocks before each test
+// Reset mocks before each test.
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -291,64 +291,68 @@ describe("POST /api/documents/index", () => {
   });
 });
 
-it("should search an indexed document using its documentId", async () => {
-  const embeddedChunks = [
-    {
-      index: 0,
-      content: "Employees can work from home two days a week.",
-      embedding: [0.8, 0.2],
-    },
-  ];
+describe("POST /api/documents/search with documentId", () => {
+  it("should search an indexed document using its documentId", async () => {
+    const embeddedChunks = [
+      {
+        index: 0,
+        content: "Employees can work from home two days a week.",
+        embedding: [0.8, 0.2],
+      },
+    ];
 
-  vi.mocked(extractTextFromPdf).mockResolvedValue(
-    "Employees can work from home two days a week.",
-  );
+    vi.mocked(extractTextFromPdf).mockResolvedValue(
+      "Employees can work from home two days a week.",
+    );
 
-  vi.mocked(prepareChunks).mockResolvedValue(embeddedChunks);
+    vi.mocked(prepareChunks).mockResolvedValue(embeddedChunks);
 
-  vi.mocked(semanticSearchPrepared).mockResolvedValue([
-    {
-      index: 0,
-      content: "Employees can work from home two days a week.",
-      score: 0.95,
-    },
-  ]);
+    vi.mocked(semanticSearchPrepared).mockResolvedValue([
+      {
+        index: 0,
+        content: "Employees can work from home two days a week.",
+        score: 0.95,
+      },
+    ]);
 
-  // Step 1: Index the PDF.
-  const indexResponse = await request(app)
-    .post("/api/documents/index")
-    .attach("file", Buffer.from("fake PDF content"), {
-      filename: "sample.pdf",
-      contentType: "application/pdf",
-    });
+    // Step 1: Index the PDF.
+    const indexResponse = await request(app)
+      .post("/api/documents/index")
+      .attach("file", Buffer.from("fake PDF content"), {
+        filename: "sample.pdf",
+        contentType: "application/pdf",
+      });
 
-  expect(indexResponse.status).toBe(201);
-  expect(indexResponse.body.success).toBe(true);
+    expect(indexResponse.status).toBe(201);
+    expect(indexResponse.body.success).toBe(true);
 
-  const documentId = indexResponse.body.documentId;
+    const documentId = indexResponse.body.documentId;
 
-  // Step 2: Search the indexed document using its ID.
-  const searchResponse = await request(app).post("/api/documents/search").send({
-    query: "How many remote work days?",
-    documentId,
+    // Step 2: Search the indexed document using its ID.
+    const searchResponse = await request(app)
+      .post("/api/documents/search")
+      .send({
+        query: "How many remote work days?",
+        documentId,
+      });
+
+    expect(searchResponse.status).toBe(200);
+    expect(searchResponse.body.success).toBe(true);
+    expect(searchResponse.body.documentId).toBe(documentId);
+    expect(searchResponse.body.results).toHaveLength(1);
+    expect(searchResponse.body.results[0].score).toBe(0.95);
+
+    expect(semanticSearchPrepared).toHaveBeenCalledWith(
+      "How many remote work days?",
+      embeddedChunks,
+    );
+
+    // Embeddings are prepared once during indexing.
+    expect(prepareChunks).toHaveBeenCalledOnce();
+
+    // Searching by documentId should use prepared embeddings.
+    expect(semanticSearch).not.toHaveBeenCalled();
   });
-
-  expect(searchResponse.status).toBe(200);
-  expect(searchResponse.body.success).toBe(true);
-  expect(searchResponse.body.documentId).toBe(documentId);
-  expect(searchResponse.body.results).toHaveLength(1);
-  expect(searchResponse.body.results[0].score).toBe(0.95);
-
-  expect(semanticSearchPrepared).toHaveBeenCalledWith(
-    "How many remote work days?",
-    embeddedChunks,
-  );
-
-  // Verify embeddings are prepared only once during indexing.
-  expect(prepareChunks).toHaveBeenCalledOnce();
-
-  // Searching by documentId should not use the original search function.
-  expect(semanticSearch).not.toHaveBeenCalled();
 });
 
 describe("POST /api/documents/ask", () => {
@@ -400,24 +404,18 @@ describe("POST /api/documents/ask", () => {
       },
     ];
 
-    const documentId = "test-document";
-
-    // Mock the stored document and search results.
     const { saveDocument } = await import("./services/documentStore.js");
-
-    const savedDocumentId = saveDocument(embeddedChunks);
+    const documentId = saveDocument(embeddedChunks);
 
     vi.mocked(semanticSearchPrepared).mockResolvedValue(searchResults);
     vi.mocked(answerQuestion).mockResolvedValue(
       "Employees can work from home two days a week.",
     );
 
-    const response = await request(app)
-      .post("/api/documents/ask")
-      .send({
-        documentId: savedDocumentId || documentId,
-        question: "How many days can employees work from home?",
-      });
+    const response = await request(app).post("/api/documents/ask").send({
+      documentId,
+      question: "How many days can employees work from home?",
+    });
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -425,8 +423,8 @@ describe("POST /api/documents/ask", () => {
       "Employees can work from home two days a week.",
     );
     expect(response.body.sources).toEqual(searchResults);
-    expect(semanticSearchPrepared).toHaveBeenCalled();
-    expect(answerQuestion).toHaveBeenCalled();
+    expect(semanticSearchPrepared).toHaveBeenCalledOnce();
+    expect(answerQuestion).toHaveBeenCalledOnce();
   });
 
   it("should return 500 when answering the question fails", async () => {
@@ -465,7 +463,7 @@ describe("POST /api/documents/ask", () => {
     });
   });
 
-  it("should handle empty search results", async () => {
+  it("should return a fallback answer when search results are empty", async () => {
     const embeddedChunks = [
       {
         index: 0,
@@ -474,7 +472,6 @@ describe("POST /api/documents/ask", () => {
       },
     ];
 
-    // Save the document using the existing document store.
     const { saveDocument } = await import("./services/documentStore.js");
     const documentId = saveDocument(embeddedChunks);
 
@@ -487,15 +484,17 @@ describe("POST /api/documents/ask", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(response.body.success).toBe(true);
-    expect(response.body.documentId).toBe(documentId);
-    expect(response.body.sources).toEqual([]);
-    expect(response.body.answer).toBe(
-      "אין מספיק מידע במסמך כדי לענות על השאלה.",
-    );
+    expect(response.body).toEqual({
+      success: true,
+      documentId,
+      question: "What information is missing?",
+      answer: "אין מספיק מידע במסמך כדי לענות על השאלה.",
+      sources: [],
+    });
 
     expect(semanticSearchPrepared).toHaveBeenCalledOnce();
 
+    // Gemini must not be called when no relevant chunks are found.
     expect(answerQuestion).not.toHaveBeenCalled();
   });
 });
