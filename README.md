@@ -109,6 +109,10 @@ npx tsc --noEmit
 - Document data is stored in a local JSON file rather than a dedicated database.
 - Semantic retrieval quality depends on the generated embeddings, similarity threshold, and relevance of the document content.
 - The project currently provides an API rather than a complete end-user web interface.
+- PDF is the currently supported document format, with a maximum upload size of 5 MB.
+- Document data is stored in a local JSON file rather than a dedicated database.
+- Semantic retrieval quality depends on the generated embeddings, similarity threshold, and relevance of the document content.
+- The project currently provides an API rather than a complete end-user web interface.
 
 ## Planned Improvements
 

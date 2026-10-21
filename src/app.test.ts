@@ -463,6 +463,42 @@ describe("POST /api/documents/ask", () => {
     });
   });
 
+  it("should return 503 when the Gemini quota is exceeded", async () => {
+    const embeddedChunks = [
+      {
+        index: 0,
+        content: "Employees can work from home two days a week.",
+        embedding: [1, 0],
+      },
+    ];
+
+    const { saveDocument } = await import("./services/documentStore.js");
+    const documentId = saveDocument(embeddedChunks);
+
+    vi.mocked(semanticSearchPrepared).mockResolvedValue([
+      {
+        index: 0,
+        content: "Employees can work from home two days a week.",
+        score: 0.95,
+      },
+    ]);
+
+    vi.mocked(answerQuestion).mockRejectedValue(
+      Object.assign(new Error("Quota exceeded"), { status: 429 }),
+    );
+
+    const response = await request(app).post("/api/documents/ask").send({
+      documentId,
+      question: "How many days can employees work from home?",
+    });
+
+    expect(response.status).toBe(503);
+    expect(response.body).toEqual({
+      success: false,
+      error: "AI service quota exceeded. Please try again later.",
+    });
+  });
+
   it("should return a fallback answer when search results are empty", async () => {
     const embeddedChunks = [
       {

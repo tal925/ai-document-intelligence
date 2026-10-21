@@ -266,9 +266,20 @@ app.post("/api/documents/ask", async (req, res) => {
   } catch (error) {
     console.error("Failed to answer document question:", error);
 
-    return res.status(500).json({
+    const status =
+      typeof error === "object" &&
+      error !== null &&
+      "status" in error &&
+      error.status === 429
+        ? 503
+        : 500;
+
+    return res.status(status).json({
       success: false,
-      error: "Failed to answer question",
+      error:
+        status === 503
+          ? "AI service quota exceeded. Please try again later."
+          : "Failed to answer question",
     });
   }
 });

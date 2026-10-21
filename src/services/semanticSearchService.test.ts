@@ -109,4 +109,31 @@ describe("semanticSearchPrepared", () => {
     expect(results).toHaveLength(1);
     expect(results[0]?.index).toBe(0);
   });
+
+  it("should return results sorted by similarity score", async () => {
+    const preparedChunks = [
+      {
+        index: 0,
+        content: "Second most relevant",
+        embedding: [0.9, 0.1],
+      },
+      {
+        index: 1,
+        content: "Most relevant",
+        embedding: [1, 0],
+      },
+    ];
+
+    mockGenerateEmbedding.mockResolvedValue([1, 0]);
+
+    const results = await semanticSearchPrepared(
+      "Relevant question",
+      preparedChunks,
+    );
+
+    expect(results.length).toBe(2);
+    expect(results[0]?.index).toBe(1);
+    expect(results[1]?.index).toBe(0);
+    expect(results[0]!.score).toBeGreaterThan(results[1]!.score);
+  });
 });
