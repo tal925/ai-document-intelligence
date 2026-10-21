@@ -3,6 +3,12 @@ import { summarizeDocument } from "./services/geminiService.js";
 import multer from "multer";
 import { extractTextFromPdf } from "./services/pdfService.js";
 import { chunkText } from "./services/chunkingService.js";
+import {
+  prepareChunks,
+  semanticSearch,
+  semanticSearchPrepared,
+} from "./services/semanticSearchService.js";
+import { saveDocument, getDocument } from "./services/documentStore.js";
 
 const app = express();
 
@@ -129,6 +135,113 @@ app.post("/api/documents/upload", handlePdfUpload, async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Failed to process PDF",
+    });
+  }
+});
+
+// Search an uploaded PDF for semantically relevant text.
+
+app.post("/api/documents/search", handlePdfUpload, async (req, res) => {
+  const query = req.body?.query;
+  const documentId = req.body?.documentId;
+
+  if (typeof query !== "string" || !query.trim()) {
+    return res.status(400).json({
+      success: false,
+      error: "Query is required",
+    });
+  }
+
+  try {
+    // Search a previously indexed document without uploading it again.
+    if (typeof documentId === "string" && documentId.trim()) {
+      const embeddedChunks = getDocument(documentId);
+
+      if (!embeddedChunks) {
+        return res.status(404).json({
+          success: false,
+          error: "Document not found",
+        });
+      }
+
+      const results = await semanticSearchPrepared(query, embeddedChunks);
+
+      return res.status(200).json({
+        success: true,
+        query,
+        documentId,
+        results,
+      });
+    }
+
+    // Preserve support for searching a PDF uploaded with the request.
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: "A PDF file or documentId is required",
+      });
+    }
+
+    if (req.file.mimetype !== "application/pdf") {
+      return res.status(400).json({
+        success: false,
+        error: "Only PDF files are supported",
+      });
+    }
+
+    const content = await extractTextFromPdf(req.file.buffer);
+    const chunks = chunkText(content);
+    const results = await semanticSearch(query, chunks);
+
+    return res.status(200).json({
+      success: true,
+      query,
+      results,
+    });
+  } catch (error) {
+    console.error("Failed to search PDF:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: "Failed to search PDF",
+    });
+  }
+});
+
+// Upload a PDF, prepare its embeddings, and store it for future searches.
+app.post("/api/documents/index", handlePdfUpload, async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      error: "A PDF file is required",
+    });
+  }
+
+  if (req.file.mimetype !== "application/pdf") {
+    return res.status(400).json({
+      success: false,
+      error: "Only PDF files are supported",
+    });
+  }
+
+  try {
+    const content = await extractTextFromPdf(req.file.buffer);
+    const chunks = chunkText(content);
+    const embeddedChunks = await prepareChunks(chunks);
+    const documentId = saveDocument(embeddedChunks);
+
+    return res.status(201).json({
+      success: true,
+      documentId,
+      message: "Document indexed successfully",
+      chunksCount: embeddedChunks.length,
+    });
+  } catch (error) {
+    console.error("Failed to index PDF:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: "Failed to index PDF",
     });
   }
 });
