@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import request from "supertest";
 import app from "./app.js";
-import { summarizeDocument } from "./services/geminiService.js";
+import { summarizeDocument, answerQuestion } from "./services/geminiService.js";
 import { extractTextFromPdf } from "./services/pdfService.js";
 import {
   prepareChunks,
@@ -12,6 +12,7 @@ import {
 // Replace Gemini with a controllable mock
 vi.mock("./services/geminiService.js", () => ({
   summarizeDocument: vi.fn(),
+  answerQuestion: vi.fn(),
 }));
 
 // Replace PDF extraction with a controllable mock
@@ -348,4 +349,160 @@ it("should search an indexed document using its documentId", async () => {
 
   // Searching by documentId should not use the original search function.
   expect(semanticSearch).not.toHaveBeenCalled();
+});
+
+describe("POST /api/documents/ask", () => {
+  it("should return 400 when question is missing", async () => {
+    const response = await request(app)
+      .post("/api/documents/ask")
+      .send({ documentId: "document-123" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBe("Question is required");
+  });
+
+  it("should return 400 when documentId is missing", async () => {
+    const response = await request(app)
+      .post("/api/documents/ask")
+      .send({ question: "What is this document about?" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBe("Document ID is required");
+  });
+
+  it("should return 404 when document does not exist", async () => {
+    const response = await request(app).post("/api/documents/ask").send({
+      documentId: "non-existent-document",
+      question: "What is this document about?",
+    });
+
+    expect(response.status).toBe(404);
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBe("Document not found");
+  });
+
+  it("should return an answer based on the indexed document", async () => {
+    const embeddedChunks = [
+      {
+        index: 0,
+        content: "Employees can work from home two days a week.",
+        embedding: [1, 0],
+      },
+    ];
+
+    const searchResults = [
+      {
+        index: 0,
+        content: "Employees can work from home two days a week.",
+        score: 0.95,
+      },
+    ];
+
+    const documentId = "test-document";
+
+    // Mock the stored document and search results.
+    const { saveDocument } = await import("./services/documentStore.js");
+
+    const savedDocumentId = saveDocument(embeddedChunks);
+
+    vi.mocked(semanticSearchPrepared).mockResolvedValue(searchResults);
+    vi.mocked(answerQuestion).mockResolvedValue(
+      "Employees can work from home two days a week.",
+    );
+
+    const response = await request(app)
+      .post("/api/documents/ask")
+      .send({
+        documentId: savedDocumentId || documentId,
+        question: "How many days can employees work from home?",
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.answer).toBe(
+      "Employees can work from home two days a week.",
+    );
+    expect(response.body.sources).toEqual(searchResults);
+    expect(semanticSearchPrepared).toHaveBeenCalled();
+    expect(answerQuestion).toHaveBeenCalled();
+  });
+
+  it("should return 500 when answering the question fails", async () => {
+    const embeddedChunks = [
+      {
+        index: 0,
+        content: "Employees can work from home two days a week.",
+        embedding: [1, 0],
+      },
+    ];
+
+    const { saveDocument } = await import("./services/documentStore.js");
+    const documentId = saveDocument(embeddedChunks);
+
+    vi.mocked(semanticSearchPrepared).mockResolvedValue([
+      {
+        index: 0,
+        content: "Employees can work from home two days a week.",
+        score: 0.95,
+      },
+    ]);
+
+    vi.mocked(answerQuestion).mockRejectedValue(
+      new Error("Simulated Gemini failure"),
+    );
+
+    const response = await request(app).post("/api/documents/ask").send({
+      documentId,
+      question: "How many days can employees work from home?",
+    });
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      success: false,
+      error: "Failed to answer question",
+    });
+  });
+
+  it("should handle empty search results", async () => {
+    const embeddedChunks = [
+      {
+        index: 0,
+        content: "Some document content",
+        embedding: [0.1, 0.2, 0.3],
+      },
+    ];
+
+    // Save the document using the existing document store.
+    const { saveDocument } = await import("./services/documentStore.js");
+    const documentId = saveDocument(embeddedChunks);
+
+    // Simulate a search that returns no relevant results.
+    vi.mocked(semanticSearchPrepared).mockResolvedValue([]);
+
+    // Simulate an answer indicating that there is insufficient information.
+    vi.mocked(answerQuestion).mockResolvedValue(
+      "אין מספיק מידע במסמך כדי לענות על השאלה.",
+    );
+
+    const response = await request(app).post("/api/documents/ask").send({
+      documentId,
+      question: "What information is missing?",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.documentId).toBe(documentId);
+    expect(response.body.sources).toEqual([]);
+    expect(response.body.answer).toBe(
+      "אין מספיק מידע במסמך כדי לענות על השאלה.",
+    );
+
+    expect(semanticSearchPrepared).toHaveBeenCalledOnce();
+    expect(answerQuestion).toHaveBeenCalledWith(
+      "What information is missing?",
+      [],
+    );
+  });
 });

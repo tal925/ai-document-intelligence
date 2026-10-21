@@ -1,5 +1,5 @@
 import express from "express";
-import { summarizeDocument } from "./services/geminiService.js";
+import { summarizeDocument, answerQuestion } from "./services/geminiService.js";
 import multer from "multer";
 import { extractTextFromPdf } from "./services/pdfService.js";
 import { chunkText } from "./services/chunkingService.js";
@@ -140,7 +140,6 @@ app.post("/api/documents/upload", handlePdfUpload, async (req, res) => {
 });
 
 // Search an uploaded PDF for semantically relevant text.
-
 app.post("/api/documents/search", handlePdfUpload, async (req, res) => {
   const query = req.body?.query;
   const documentId = req.body?.documentId;
@@ -204,6 +203,60 @@ app.post("/api/documents/search", handlePdfUpload, async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Failed to search PDF",
+    });
+  }
+});
+
+// Ask a question about a previously indexed document using RAG
+app.post("/api/documents/ask", async (req, res) => {
+  const { documentId, question } = req.body ?? {};
+
+  // Validate the question
+  if (typeof question !== "string" || !question.trim()) {
+    return res.status(400).json({
+      success: false,
+      error: "Question is required",
+    });
+  }
+
+  // Validate the document ID
+  if (typeof documentId !== "string" || !documentId.trim()) {
+    return res.status(400).json({
+      success: false,
+      error: "Document ID is required",
+    });
+  }
+
+  try {
+    // Retrieve the indexed document
+    const embeddedChunks = getDocument(documentId);
+
+    if (!embeddedChunks) {
+      return res.status(404).json({
+        success: false,
+        error: "Document not found",
+      });
+    }
+
+    // Find the most relevant chunks
+    const results = await semanticSearchPrepared(question, embeddedChunks);
+
+    // Generate an answer based on the retrieved chunks
+    const answer = await answerQuestion(question, results);
+
+    return res.status(200).json({
+      success: true,
+      documentId,
+      question,
+      answer,
+      sources: results,
+    });
+  } catch (error) {
+    console.error("Failed to answer document question:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: "Failed to answer question",
     });
   }
 });
