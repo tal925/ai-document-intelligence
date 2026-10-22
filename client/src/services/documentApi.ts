@@ -29,8 +29,17 @@ interface ApiErrorResponse {
 }
 
 async function readError(response: Response): Promise<string> {
-  const data = (await response.json()) as ApiErrorResponse;
-  return data.error || "An unexpected error occurred";
+  try {
+    const data = (await response.json()) as Partial<ApiErrorResponse>;
+
+    if (typeof data.error === "string" && data.error.trim()) {
+      return data.error;
+    }
+  } catch {
+    // The server response is not valid JSON.
+  }
+
+  return "An unexpected error occurred. Please try again later.";
 }
 
 export async function indexDocument(
