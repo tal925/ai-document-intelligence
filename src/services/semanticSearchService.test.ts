@@ -23,6 +23,26 @@ describe("semanticSearch", () => {
     { index: 1, content: "The office is open from Sunday to Thursday." },
   ];
 
+  it("should include chunks at the minimum similarity score", async () => {
+    const preparedChunks = [
+      {
+        index: 0,
+        content: "Boundary score chunk",
+        embedding: [0.7, Math.sqrt(1 - 0.7 ** 2)],
+      },
+    ];
+
+    mockGenerateEmbedding.mockResolvedValue([1, 0]);
+
+    const results = await semanticSearchPrepared(
+      "Boundary question",
+      preparedChunks,
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0]?.score).toBeGreaterThanOrEqual(0.7);
+  });
+
   it("should return chunks ranked by similarity", async () => {
     mockGenerateEmbedding.mockImplementation(async (text: string) => {
       if (text === "How many remote work days?") {
