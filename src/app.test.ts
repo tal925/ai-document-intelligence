@@ -505,6 +505,30 @@ describe("POST /api/documents/index", () => {
 
     expect(saveDocument).not.toHaveBeenCalled();
   });
+
+  it("should return 503 when the AI service quota is exceeded", async () => {
+    vi.mocked(extractTextFromPdf).mockResolvedValue("A valid PDF document");
+
+    vi.mocked(prepareChunks).mockRejectedValue({
+      status: 429,
+      message: "Quota exceeded",
+    });
+
+    const response = await request(app)
+      .post("/api/documents/index")
+      .attach("file", Buffer.from("fake PDF content"), {
+        filename: "sample.pdf",
+        contentType: "application/pdf",
+      });
+
+    expect(response.status).toBe(503);
+    expect(response.body).toEqual({
+      success: false,
+      error: "AI service quota exceeded. Please try again later.",
+    });
+
+    expect(saveDocument).not.toHaveBeenCalled();
+  });
 });
 
 describe("POST /api/documents/ask", () => {
