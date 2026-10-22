@@ -261,7 +261,11 @@ app.post("/api/documents/ask", async (req, res) => {
       });
     }
 
+    console.log("[ask] Starting semantic search");
+
     const results = await semanticSearchPrepared(question, embeddedChunks);
+
+    console.log(`[ask] Semantic search completed. Results: ${results.length}`);
 
     // Return a fallback answer when no relevant chunks are found.
     if (results.length === 0) {
@@ -274,7 +278,11 @@ app.post("/api/documents/ask", async (req, res) => {
       });
     }
 
+    console.log("[ask] Sending question to Gemini");
+
     const answer = await answerQuestion(question, results);
+
+    console.log("[ask] Gemini answer received");
 
     return res.status(200).json({
       success: true,

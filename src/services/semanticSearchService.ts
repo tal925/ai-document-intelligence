@@ -24,7 +24,7 @@ export async function prepareChunks(
 }
 
 // Minimum similarity score for a relevant search result.
-export const MIN_SIMILARITY_SCORE = 0.7;
+export const MIN_SIMILARITY_SCORE = 0.62;
 
 // Search chunks whose embeddings have already been calculated.
 export async function semanticSearchPrepared(
