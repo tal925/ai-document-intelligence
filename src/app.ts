@@ -9,27 +9,27 @@ import {
   semanticSearchPrepared,
 } from "./services/semanticSearchService.js";
 import { saveDocument, getDocument } from "./services/documentStore.js";
+import { extractTextFromFile } from "./services/documentTextService.js";
 
 const app = express();
 
 // Parse incoming JSON request bodies
 app.use(express.json());
 
-// Configure PDF uploads in memory with a 5 MB size limit
+// Configure document uploads in memory with a 5 MB size limit
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 
 // Handle file upload errors before the route handler
-const handlePdfUpload = (
+const handleDocumentUpload = (
   req: express.Request,
   res: express.Response,
   next: express.NextFunction,
 ) => {
   upload.single("file")(req, res, (error) => {
     if (error instanceof multer.MulterError) {
-      // Return 413 when the uploaded file exceeds 5 MB
       if (error.code === "LIMIT_FILE_SIZE") {
         return res.status(413).json({
           success: false,
@@ -37,14 +37,12 @@ const handlePdfUpload = (
         });
       }
 
-      // Return 400 for other Multer upload errors
       return res.status(400).json({
         success: false,
         error: "File upload failed",
       });
     }
 
-    // Forward unexpected upload errors to Express
     if (error) {
       return res.status(400).json({
         success: false,
@@ -56,6 +54,44 @@ const handlePdfUpload = (
   });
 };
 
+// Identify the document type and extract its text.
+async function extractDocumentText(file: Express.Multer.File): Promise<string> {
+  const extension = file.originalname.split(".").pop()?.toLowerCase();
+
+  if (extension === "pdf") {
+    if (file.mimetype !== "application/pdf") {
+      throw new Error("Unsupported file type");
+    }
+
+    return extractTextFromPdf(file.buffer);
+  }
+
+  if (extension === "txt" || extension === "md") {
+    const allowedMimeTypes = [
+      "text/plain",
+      "text/markdown",
+      "application/octet-stream",
+    ];
+
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new Error("Unsupported file type");
+    }
+
+    return extractTextFromFile(file.buffer, extension);
+  }
+
+  throw new Error("Unsupported file type");
+}
+
+// Check whether an error should be returned as a client error.
+function isDocumentInputError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message === "Unsupported file type" ||
+      error.message === "No extractable text found in file")
+  );
+}
+
 // Check that the server is running
 app.get("/api/health", (_req, res) => {
   res.status(200).json({
@@ -64,11 +100,10 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-// Generate a summary for the submitted document
+// Generate a summary for submitted text
 app.post("/api/documents/summary", async (req, res) => {
   const { content } = req.body;
 
-  // Reject missing or empty content
   if (typeof content !== "string" || content.trim() === "") {
     return res.status(400).json({
       success: false,
@@ -77,19 +112,15 @@ app.post("/api/documents/summary", async (req, res) => {
   }
 
   try {
-    // Generate a summary using Gemini
     const summary = await summarizeDocument(content);
 
-    // Return the generated summary
     return res.status(200).json({
       success: true,
       summary,
     });
   } catch (error) {
-    // Log the error for debugging
     console.error("Failed to summarize document:", error);
 
-    // Return a server error response
     return res.status(500).json({
       success: false,
       error: "Failed to summarize document",
@@ -97,30 +128,18 @@ app.post("/api/documents/summary", async (req, res) => {
   }
 });
 
-// Upload a PDF and generate a Hebrew summary
-app.post("/api/documents/upload", handlePdfUpload, async (req, res) => {
+// Upload a supported document and generate a summary
+app.post("/api/documents/upload", handleDocumentUpload, async (req, res) => {
   if (!req.file) {
     return res.status(400).json({
       success: false,
-      error: "A PDF file is required",
-    });
-  }
-
-  // Reject files that are not identified as PDFs
-  if (req.file.mimetype !== "application/pdf") {
-    return res.status(400).json({
-      success: false,
-      error: "Only PDF files are supported",
+      error: "A document file is required",
     });
   }
 
   try {
-    const content = await extractTextFromPdf(req.file.buffer);
-
-    // Split the extracted document into smaller chunks.
+    const content = await extractDocumentText(req.file);
     const chunks = chunkText(content);
-
-    // Join the chunks to preserve the existing summarization behavior.
     const summary = await summarizeDocument(
       chunks.map((chunk) => chunk.content).join("\n"),
     );
@@ -130,17 +149,24 @@ app.post("/api/documents/upload", handlePdfUpload, async (req, res) => {
       summary,
     });
   } catch (error) {
-    console.error("Failed to process PDF:", error);
+    if (isDocumentInputError(error)) {
+      return res.status(400).json({
+        success: false,
+        error: "Unsupported file type or empty document",
+      });
+    }
+
+    console.error("Failed to process document:", error);
 
     return res.status(500).json({
       success: false,
-      error: "Failed to process PDF",
+      error: "Failed to process document",
     });
   }
 });
 
-// Search an uploaded PDF for semantically relevant text.
-app.post("/api/documents/search", handlePdfUpload, async (req, res) => {
+// Search an uploaded document or a previously indexed document
+app.post("/api/documents/search", handleDocumentUpload, async (req, res) => {
   const query = req.body?.query;
   const documentId = req.body?.documentId;
 
@@ -173,22 +199,15 @@ app.post("/api/documents/search", handlePdfUpload, async (req, res) => {
       });
     }
 
-    // Preserve support for searching a PDF uploaded with the request.
+    // Search a document uploaded with this request.
     if (!req.file) {
       return res.status(400).json({
         success: false,
-        error: "A PDF file or documentId is required",
+        error: "A supported document file or documentId is required",
       });
     }
 
-    if (req.file.mimetype !== "application/pdf") {
-      return res.status(400).json({
-        success: false,
-        error: "Only PDF files are supported",
-      });
-    }
-
-    const content = await extractTextFromPdf(req.file.buffer);
+    const content = await extractDocumentText(req.file);
     const chunks = chunkText(content);
     const results = await semanticSearch(query, chunks);
 
@@ -198,11 +217,18 @@ app.post("/api/documents/search", handlePdfUpload, async (req, res) => {
       results,
     });
   } catch (error) {
-    console.error("Failed to search PDF:", error);
+    if (isDocumentInputError(error)) {
+      return res.status(400).json({
+        success: false,
+        error: "Unsupported file type or empty document",
+      });
+    }
+
+    console.error("Failed to search document:", error);
 
     return res.status(500).json({
       success: false,
-      error: "Failed to search PDF",
+      error: "Failed to search document",
     });
   }
 });
@@ -211,7 +237,6 @@ app.post("/api/documents/search", handlePdfUpload, async (req, res) => {
 app.post("/api/documents/ask", async (req, res) => {
   const { documentId, question } = req.body ?? {};
 
-  // Validate the question
   if (typeof question !== "string" || !question.trim()) {
     return res.status(400).json({
       success: false,
@@ -219,7 +244,6 @@ app.post("/api/documents/ask", async (req, res) => {
     });
   }
 
-  // Validate the document ID
   if (typeof documentId !== "string" || !documentId.trim()) {
     return res.status(400).json({
       success: false,
@@ -228,7 +252,6 @@ app.post("/api/documents/ask", async (req, res) => {
   }
 
   try {
-    // Retrieve the indexed document
     const embeddedChunks = getDocument(documentId);
 
     if (!embeddedChunks) {
@@ -238,7 +261,6 @@ app.post("/api/documents/ask", async (req, res) => {
       });
     }
 
-    // Find the most relevant chunks
     const results = await semanticSearchPrepared(question, embeddedChunks);
 
     // Return a fallback answer when no relevant chunks are found.
@@ -252,10 +274,8 @@ app.post("/api/documents/ask", async (req, res) => {
       });
     }
 
-    // Generate an answer based on the retrieved chunks
     const answer = await answerQuestion(question, results);
 
-    // Return the generated answer and its sources
     return res.status(200).json({
       success: true,
       documentId,
@@ -284,24 +304,17 @@ app.post("/api/documents/ask", async (req, res) => {
   }
 });
 
-// Upload a PDF, prepare its embeddings, and store it for future searches.
-app.post("/api/documents/index", handlePdfUpload, async (req, res) => {
+// Upload a supported document, prepare its embeddings, and store it.
+app.post("/api/documents/index", handleDocumentUpload, async (req, res) => {
   if (!req.file) {
     return res.status(400).json({
       success: false,
-      error: "A PDF file is required",
-    });
-  }
-
-  if (req.file.mimetype !== "application/pdf") {
-    return res.status(400).json({
-      success: false,
-      error: "Only PDF files are supported",
+      error: "A document file is required",
     });
   }
 
   try {
-    const content = await extractTextFromPdf(req.file.buffer);
+    const content = await extractDocumentText(req.file);
     const chunks = chunkText(content);
     const embeddedChunks = await prepareChunks(chunks);
     const documentId = saveDocument(embeddedChunks);
@@ -313,11 +326,18 @@ app.post("/api/documents/index", handlePdfUpload, async (req, res) => {
       chunksCount: embeddedChunks.length,
     });
   } catch (error) {
-    console.error("Failed to index PDF:", error);
+    if (isDocumentInputError(error)) {
+      return res.status(400).json({
+        success: false,
+        error: "Unsupported file type or empty document",
+      });
+    }
+
+    console.error("Failed to index document:", error);
 
     return res.status(500).json({
       success: false,
-      error: "Failed to index PDF",
+      error: "Failed to index document",
     });
   }
 });

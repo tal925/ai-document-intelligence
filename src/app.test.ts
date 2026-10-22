@@ -3,11 +3,14 @@ import request from "supertest";
 import app from "./app.js";
 import { summarizeDocument, answerQuestion } from "./services/geminiService.js";
 import { extractTextFromPdf } from "./services/pdfService.js";
+import { chunkText } from "./services/chunkingService.js";
 import {
   prepareChunks,
   semanticSearch,
   semanticSearchPrepared,
 } from "./services/semanticSearchService.js";
+import { saveDocument, getDocument } from "./services/documentStore.js";
+import { extractTextFromFile } from "./services/documentTextService.js";
 
 // Replace Gemini with controllable mocks.
 vi.mock("./services/geminiService.js", () => ({
@@ -20,16 +23,35 @@ vi.mock("./services/pdfService.js", () => ({
   extractTextFromPdf: vi.fn(),
 }));
 
-// Replace semantic search with controllable mocks.
+// Replace text chunking with a predictable mock.
+vi.mock("./services/chunkingService.js", () => ({
+  chunkText: vi.fn(),
+}));
+
+// Replace semantic search and embedding preparation with mocks.
 vi.mock("./services/semanticSearchService.js", () => ({
   semanticSearch: vi.fn(),
   prepareChunks: vi.fn(),
   semanticSearchPrepared: vi.fn(),
 }));
 
-// Reset mocks before each test.
+// Replace document storage with controllable mocks.
+vi.mock("./services/documentStore.js", () => ({
+  saveDocument: vi.fn(),
+  getDocument: vi.fn(),
+}));
+
+// Replace TXT and Markdown extraction with a controllable mock.
+vi.mock("./services/documentTextService.js", () => ({
+  extractTextFromFile: vi.fn(),
+}));
+
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+
+  vi.mocked(chunkText).mockImplementation((content) => [{ index: 0, content }]);
+
+  vi.mocked(getDocument).mockReturnValue(undefined);
 });
 
 describe("GET /api/health", () => {
@@ -59,7 +81,7 @@ describe("POST /api/documents/summary", () => {
 
   it("should return 200 when summarization succeeds", async () => {
     vi.mocked(summarizeDocument).mockResolvedValue(
-      "* המסמך מאפשר ליצור משימות.\n* המערכת שולחת תזכורות.",
+      "Summary line 1\nSummary line 2",
     );
 
     const response = await request(app)
@@ -67,8 +89,12 @@ describe("POST /api/documents/summary", () => {
       .send({ content: "A valid document" });
 
     expect(response.status).toBe(200);
-    expect(response.body.success).toBe(true);
-    expect(response.body.summary).toContain("המסמך");
+    expect(response.body).toEqual({
+      success: true,
+      summary: "Summary line 1\nSummary line 2",
+    });
+
+    expect(summarizeDocument).toHaveBeenCalledWith("A valid document");
   });
 
   it("should return 500 when summarization fails", async () => {
@@ -95,31 +121,28 @@ describe("POST /api/documents/upload", () => {
     expect(response.status).toBe(400);
     expect(response.body).toEqual({
       success: false,
-      error: "A PDF file is required",
+      error: "A document file is required",
     });
   });
 
-  it("should return 400 when the uploaded file is not a PDF", async () => {
+  it("should return 400 when the file type is unsupported", async () => {
     const response = await request(app)
       .post("/api/documents/upload")
-      .attach("file", Buffer.from("plain text"), {
-        filename: "document.txt",
-        contentType: "text/plain",
+      .attach("file", Buffer.from("image content"), {
+        filename: "document.png",
+        contentType: "image/png",
       });
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({
       success: false,
-      error: "Only PDF files are supported",
+      error: "Unsupported file type or empty document",
     });
   });
 
-  it("should return 200 when PDF extraction and summarization succeed", async () => {
+  it("should summarize a PDF successfully", async () => {
     vi.mocked(extractTextFromPdf).mockResolvedValue("A valid PDF document");
-
-    vi.mocked(summarizeDocument).mockResolvedValue(
-      "* המסמך מתאר מערכת לניהול משימות.\n* המערכת שולחת תזכורות.",
-    );
+    vi.mocked(summarizeDocument).mockResolvedValue("PDF summary");
 
     const response = await request(app)
       .post("/api/documents/upload")
@@ -129,11 +152,84 @@ describe("POST /api/documents/upload", () => {
       });
 
     expect(response.status).toBe(200);
-    expect(response.body.success).toBe(true);
-    expect(response.body.summary).toContain("המסמך");
+    expect(response.body).toEqual({
+      success: true,
+      summary: "PDF summary",
+    });
 
     expect(extractTextFromPdf).toHaveBeenCalledOnce();
+    expect(chunkText).toHaveBeenCalledWith("A valid PDF document");
     expect(summarizeDocument).toHaveBeenCalledWith("A valid PDF document");
+  });
+
+  it("should summarize a TXT file successfully", async () => {
+    vi.mocked(extractTextFromFile).mockReturnValue("Text file content");
+    vi.mocked(summarizeDocument).mockResolvedValue("TXT summary");
+
+    const response = await request(app)
+      .post("/api/documents/upload")
+      .attach("file", Buffer.from("Text file content"), {
+        filename: "document.txt",
+        contentType: "text/plain",
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      success: true,
+      summary: "TXT summary",
+    });
+
+    expect(extractTextFromFile).toHaveBeenCalledWith(
+      Buffer.from("Text file content"),
+      "txt",
+    );
+    expect(summarizeDocument).toHaveBeenCalledWith("Text file content");
+  });
+
+  it("should summarize a Markdown file successfully", async () => {
+    vi.mocked(extractTextFromFile).mockReturnValue(
+      "# Document\nMarkdown content",
+    );
+    vi.mocked(summarizeDocument).mockResolvedValue("Markdown summary");
+
+    const response = await request(app)
+      .post("/api/documents/upload")
+      .attach("file", Buffer.from("# Document\nMarkdown content"), {
+        filename: "document.md",
+        contentType: "text/markdown",
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      success: true,
+      summary: "Markdown summary",
+    });
+
+    expect(extractTextFromFile).toHaveBeenCalledWith(
+      Buffer.from("# Document\nMarkdown content"),
+      "md",
+    );
+  });
+
+  it("should return 400 when a text file contains no extractable text", async () => {
+    vi.mocked(extractTextFromFile).mockImplementation(() => {
+      throw new Error("No extractable text found in file");
+    });
+
+    const response = await request(app)
+      .post("/api/documents/upload")
+      .attach("file", Buffer.from(""), {
+        filename: "empty.txt",
+        contentType: "text/plain",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      success: false,
+      error: "Unsupported file type or empty document",
+    });
+
+    expect(summarizeDocument).not.toHaveBeenCalled();
   });
 
   it("should return 500 when PDF extraction fails", async () => {
@@ -151,7 +247,7 @@ describe("POST /api/documents/upload", () => {
     expect(response.status).toBe(500);
     expect(response.body).toEqual({
       success: false,
-      error: "Failed to process PDF",
+      error: "Failed to process document",
     });
 
     expect(summarizeDocument).not.toHaveBeenCalled();
@@ -175,7 +271,7 @@ describe("POST /api/documents/search", () => {
     });
   });
 
-  it("should return 400 when no file is uploaded", async () => {
+  it("should return 400 when no file or documentId is provided", async () => {
     const response = await request(app)
       .post("/api/documents/search")
       .field("query", "How many remote work days?");
@@ -183,7 +279,7 @@ describe("POST /api/documents/search", () => {
     expect(response.status).toBe(400);
     expect(response.body).toEqual({
       success: false,
-      error: "A PDF file or documentId is required",
+      error: "A supported document file or documentId is required",
     });
   });
 
@@ -238,7 +334,7 @@ describe("POST /api/documents/search", () => {
     expect(response.status).toBe(500);
     expect(response.body).toEqual({
       success: false,
-      error: "Failed to search PDF",
+      error: "Failed to search document",
     });
 
     expect(semanticSearch).not.toHaveBeenCalled();
@@ -258,9 +354,54 @@ describe("POST /api/documents/search", () => {
 
     expect(semanticSearchPrepared).not.toHaveBeenCalled();
   });
+
+  it("should search a previously indexed document", async () => {
+    const embeddedChunks = [
+      {
+        index: 0,
+        content: "Employees can work from home two days a week.",
+        embedding: [0.8, 0.2],
+      },
+    ];
+
+    vi.mocked(getDocument).mockReturnValue(embeddedChunks);
+    vi.mocked(semanticSearchPrepared).mockResolvedValue([
+      {
+        index: 0,
+        content: "Employees can work from home two days a week.",
+        score: 0.95,
+      },
+    ]);
+
+    const response = await request(app).post("/api/documents/search").send({
+      query: "How many remote work days?",
+      documentId: "existing-document-id",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.documentId).toBe("existing-document-id");
+    expect(response.body.results).toHaveLength(1);
+
+    expect(getDocument).toHaveBeenCalledWith("existing-document-id");
+    expect(semanticSearchPrepared).toHaveBeenCalledWith(
+      "How many remote work days?",
+      embeddedChunks,
+    );
+  });
 });
 
 describe("POST /api/documents/index", () => {
+  it("should return 400 when no file is uploaded", async () => {
+    const response = await request(app).post("/api/documents/index");
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      success: false,
+      error: "A document file is required",
+    });
+  });
+
   it("should index a PDF and return a documentId", async () => {
     const embeddedChunks = [
       {
@@ -273,8 +414,8 @@ describe("POST /api/documents/index", () => {
     vi.mocked(extractTextFromPdf).mockResolvedValue(
       "Employees can work from home two days a week.",
     );
-
     vi.mocked(prepareChunks).mockResolvedValue(embeddedChunks);
+    vi.mocked(saveDocument).mockReturnValue("test-document-id");
 
     const response = await request(app)
       .post("/api/documents/index")
@@ -284,115 +425,136 @@ describe("POST /api/documents/index", () => {
       });
 
     expect(response.status).toBe(201);
-    expect(response.body.success).toBe(true);
-    expect(response.body.documentId).toBeTypeOf("string");
-    expect(response.body.chunksCount).toBe(1);
-    expect(prepareChunks).toHaveBeenCalledOnce();
-  });
-});
+    expect(response.body).toEqual({
+      success: true,
+      documentId: "test-document-id",
+      message: "Document indexed successfully",
+      chunksCount: 1,
+    });
 
-describe("POST /api/documents/search with documentId", () => {
-  it("should search an indexed document using its documentId", async () => {
+    expect(prepareChunks).toHaveBeenCalledWith([
+      {
+        index: 0,
+        content: "Employees can work from home two days a week.",
+      },
+    ]);
+    expect(saveDocument).toHaveBeenCalledWith(embeddedChunks);
+  });
+
+  it("should index a TXT file successfully", async () => {
     const embeddedChunks = [
       {
         index: 0,
-        content: "Employees can work from home two days a week.",
-        embedding: [0.8, 0.2],
+        content: "Text document content",
+        embedding: [0.5, 0.5],
       },
     ];
 
-    vi.mocked(extractTextFromPdf).mockResolvedValue(
-      "Employees can work from home two days a week.",
+    vi.mocked(extractTextFromFile).mockReturnValue("Text document content");
+    vi.mocked(prepareChunks).mockResolvedValue(embeddedChunks);
+    vi.mocked(saveDocument).mockReturnValue("txt-document-id");
+
+    const response = await request(app)
+      .post("/api/documents/index")
+      .attach("file", Buffer.from("Text document content"), {
+        filename: "document.txt",
+        contentType: "text/plain",
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.documentId).toBe("txt-document-id");
+    expect(response.body.chunksCount).toBe(1);
+  });
+
+  it("should return 400 when the uploaded file type is unsupported", async () => {
+    const response = await request(app)
+      .post("/api/documents/index")
+      .attach("file", Buffer.from("image content"), {
+        filename: "document.png",
+        contentType: "image/png",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      success: false,
+      error: "Unsupported file type or empty document",
+    });
+
+    expect(prepareChunks).not.toHaveBeenCalled();
+    expect(saveDocument).not.toHaveBeenCalled();
+  });
+
+  it("should return 500 when preparing chunks fails", async () => {
+    vi.mocked(extractTextFromPdf).mockResolvedValue("A valid PDF document");
+    vi.mocked(prepareChunks).mockRejectedValue(
+      new Error("Simulated embedding failure"),
     );
 
-    vi.mocked(prepareChunks).mockResolvedValue(embeddedChunks);
-
-    vi.mocked(semanticSearchPrepared).mockResolvedValue([
-      {
-        index: 0,
-        content: "Employees can work from home two days a week.",
-        score: 0.95,
-      },
-    ]);
-
-    // Step 1: Index the PDF.
-    const indexResponse = await request(app)
+    const response = await request(app)
       .post("/api/documents/index")
       .attach("file", Buffer.from("fake PDF content"), {
         filename: "sample.pdf",
         contentType: "application/pdf",
       });
 
-    expect(indexResponse.status).toBe(201);
-    expect(indexResponse.body.success).toBe(true);
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      success: false,
+      error: "Failed to index document",
+    });
 
-    const documentId = indexResponse.body.documentId;
-
-    // Step 2: Search the indexed document using its ID.
-    const searchResponse = await request(app)
-      .post("/api/documents/search")
-      .send({
-        query: "How many remote work days?",
-        documentId,
-      });
-
-    expect(searchResponse.status).toBe(200);
-    expect(searchResponse.body.success).toBe(true);
-    expect(searchResponse.body.documentId).toBe(documentId);
-    expect(searchResponse.body.results).toHaveLength(1);
-    expect(searchResponse.body.results[0].score).toBe(0.95);
-
-    expect(semanticSearchPrepared).toHaveBeenCalledWith(
-      "How many remote work days?",
-      embeddedChunks,
-    );
-
-    // Embeddings are prepared once during indexing.
-    expect(prepareChunks).toHaveBeenCalledOnce();
-
-    // Searching by documentId should use prepared embeddings.
-    expect(semanticSearch).not.toHaveBeenCalled();
+    expect(saveDocument).not.toHaveBeenCalled();
   });
 });
 
 describe("POST /api/documents/ask", () => {
-  it("should return 400 when question is missing", async () => {
-    const response = await request(app)
-      .post("/api/documents/ask")
-      .send({ documentId: "document-123" });
-
-    expect(response.status).toBe(400);
-    expect(response.body.success).toBe(false);
-    expect(response.body.error).toBe("Question is required");
-  });
-
-  it("should return 400 when documentId is missing", async () => {
-    const response = await request(app)
-      .post("/api/documents/ask")
-      .send({ question: "What is this document about?" });
-
-    expect(response.status).toBe(400);
-    expect(response.body.success).toBe(false);
-    expect(response.body.error).toBe("Document ID is required");
-  });
-
-  it("should return 404 when document does not exist", async () => {
+  it("should return 400 when the question is empty", async () => {
     const response = await request(app).post("/api/documents/ask").send({
-      documentId: "non-existent-document",
-      question: "What is this document about?",
+      documentId: "test-document-id",
+      question: "   ",
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      success: false,
+      error: "Question is required",
+    });
+  });
+
+  it("should return 400 when the documentId is missing", async () => {
+    const response = await request(app).post("/api/documents/ask").send({
+      question: "What does the document say?",
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      success: false,
+      error: "Document ID is required",
+    });
+  });
+
+  it("should return 404 when the document does not exist", async () => {
+    const response = await request(app).post("/api/documents/ask").send({
+      documentId: "non-existing-document-id",
+      question: "What does the document say?",
     });
 
     expect(response.status).toBe(404);
-    expect(response.body.success).toBe(false);
-    expect(response.body.error).toBe("Document not found");
+    expect(response.body).toEqual({
+      success: false,
+      error: "Document not found",
+    });
+
+    expect(semanticSearchPrepared).not.toHaveBeenCalled();
+    expect(answerQuestion).not.toHaveBeenCalled();
   });
 
-  it("should return an answer based on the indexed document", async () => {
+  it("should answer a question using the indexed document", async () => {
     const embeddedChunks = [
       {
         index: 0,
         content: "Employees can work from home two days a week.",
-        embedding: [1, 0],
+        embedding: [0.8, 0.2],
       },
     ];
 
@@ -404,56 +566,89 @@ describe("POST /api/documents/ask", () => {
       },
     ];
 
-    const { saveDocument } = await import("./services/documentStore.js");
-    const documentId = saveDocument(embeddedChunks);
-
+    vi.mocked(getDocument).mockReturnValue(embeddedChunks);
     vi.mocked(semanticSearchPrepared).mockResolvedValue(searchResults);
     vi.mocked(answerQuestion).mockResolvedValue(
-      "Employees can work from home two days a week.",
+      "Employees can work remotely two days a week.",
     );
 
     const response = await request(app).post("/api/documents/ask").send({
-      documentId,
-      question: "How many days can employees work from home?",
+      documentId: "test-document-id",
+      question: "How many remote work days?",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      success: true,
+      documentId: "test-document-id",
+      question: "How many remote work days?",
+      answer: "Employees can work remotely two days a week.",
+      sources: searchResults,
+    });
+
+    expect(semanticSearchPrepared).toHaveBeenCalledWith(
+      "How many remote work days?",
+      embeddedChunks,
+    );
+    expect(answerQuestion).toHaveBeenCalledWith(
+      "How many remote work days?",
+      searchResults,
+    );
+  });
+
+  it("should return a fallback answer when no relevant chunks are found", async () => {
+    const embeddedChunks = [
+      {
+        index: 0,
+        content: "A document about office policies.",
+        embedding: [0.8, 0.2],
+      },
+    ];
+
+    vi.mocked(getDocument).mockReturnValue(embeddedChunks);
+    vi.mocked(semanticSearchPrepared).mockResolvedValue([]);
+
+    const response = await request(app).post("/api/documents/ask").send({
+      documentId: "test-document-id",
+      question: "What is the weather today?",
     });
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
+    expect(response.body.documentId).toBe("test-document-id");
+    expect(response.body.question).toBe("What is the weather today?");
+    expect(response.body.sources).toEqual([]);
     expect(response.body.answer).toBe(
-      "Employees can work from home two days a week.",
+      "אין מספיק מידע במסמך כדי לענות על השאלה.",
     );
-    expect(response.body.sources).toEqual(searchResults);
-    expect(semanticSearchPrepared).toHaveBeenCalledOnce();
-    expect(answerQuestion).toHaveBeenCalledOnce();
+
+    expect(answerQuestion).not.toHaveBeenCalled();
   });
 
   it("should return 500 when answering the question fails", async () => {
     const embeddedChunks = [
       {
         index: 0,
-        content: "Employees can work from home two days a week.",
-        embedding: [1, 0],
+        content: "A document about office policies.",
+        embedding: [0.8, 0.2],
       },
     ];
 
-    const { saveDocument } = await import("./services/documentStore.js");
-    const documentId = saveDocument(embeddedChunks);
-
+    vi.mocked(getDocument).mockReturnValue(embeddedChunks);
     vi.mocked(semanticSearchPrepared).mockResolvedValue([
       {
         index: 0,
-        content: "Employees can work from home two days a week.",
-        score: 0.95,
+        content: "A document about office policies.",
+        score: 0.9,
       },
     ]);
-
     vi.mocked(answerQuestion).mockRejectedValue(
       new Error("Simulated Gemini failure"),
     );
 
     const response = await request(app).post("/api/documents/ask").send({
-      documentId,
-      question: "How many days can employees work from home?",
+      documentId: "test-document-id",
+      question: "What does the document say?",
     });
 
     expect(response.status).toBe(500);
@@ -463,33 +658,31 @@ describe("POST /api/documents/ask", () => {
     });
   });
 
-  it("should return 503 when the Gemini quota is exceeded", async () => {
+  it("should return 503 when the AI service quota is exceeded", async () => {
     const embeddedChunks = [
       {
         index: 0,
-        content: "Employees can work from home two days a week.",
-        embedding: [1, 0],
+        content: "A document about office policies.",
+        embedding: [0.8, 0.2],
       },
     ];
 
-    const { saveDocument } = await import("./services/documentStore.js");
-    const documentId = saveDocument(embeddedChunks);
-
+    vi.mocked(getDocument).mockReturnValue(embeddedChunks);
     vi.mocked(semanticSearchPrepared).mockResolvedValue([
       {
         index: 0,
-        content: "Employees can work from home two days a week.",
-        score: 0.95,
+        content: "A document about office policies.",
+        score: 0.9,
       },
     ]);
-
-    vi.mocked(answerQuestion).mockRejectedValue(
-      Object.assign(new Error("Quota exceeded"), { status: 429 }),
-    );
+    vi.mocked(answerQuestion).mockRejectedValue({
+      status: 429,
+      message: "Quota exceeded",
+    });
 
     const response = await request(app).post("/api/documents/ask").send({
-      documentId,
-      question: "How many days can employees work from home?",
+      documentId: "test-document-id",
+      question: "What does the document say?",
     });
 
     expect(response.status).toBe(503);
@@ -497,40 +690,5 @@ describe("POST /api/documents/ask", () => {
       success: false,
       error: "AI service quota exceeded. Please try again later.",
     });
-  });
-
-  it("should return a fallback answer when search results are empty", async () => {
-    const embeddedChunks = [
-      {
-        index: 0,
-        content: "Some document content",
-        embedding: [0.1, 0.2, 0.3],
-      },
-    ];
-
-    const { saveDocument } = await import("./services/documentStore.js");
-    const documentId = saveDocument(embeddedChunks);
-
-    // Simulate a search that returns no relevant results.
-    vi.mocked(semanticSearchPrepared).mockResolvedValue([]);
-
-    const response = await request(app).post("/api/documents/ask").send({
-      documentId,
-      question: "What information is missing?",
-    });
-
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual({
-      success: true,
-      documentId,
-      question: "What information is missing?",
-      answer: "אין מספיק מידע במסמך כדי לענות על השאלה.",
-      sources: [],
-    });
-
-    expect(semanticSearchPrepared).toHaveBeenCalledOnce();
-
-    // Gemini must not be called when no relevant chunks are found.
-    expect(answerQuestion).not.toHaveBeenCalled();
   });
 });
