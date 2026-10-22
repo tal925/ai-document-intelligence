@@ -92,6 +92,32 @@ function isDocumentInputError(error: unknown): boolean {
   );
 }
 
+// Check whether Gemini rejected a request because of quota or rate limits.
+function isAiQuotaError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null || !("status" in error)) {
+    return false;
+  }
+
+  return error.status === 429;
+}
+
+// Return a consistent response when the AI quota is exceeded.
+function sendAiError(res: express.Response, error: unknown, message: string) {
+  if (isAiQuotaError(error)) {
+    return res.status(503).json({
+      success: false,
+      error: "AI service quota exceeded. Please try again later.",
+    });
+  }
+
+  console.error(message, error);
+
+  return res.status(500).json({
+    success: false,
+    error: message,
+  });
+}
+
 // Check that the server is running
 app.get("/api/health", (_req, res) => {
   res.status(200).json({
@@ -119,12 +145,7 @@ app.post("/api/documents/summary", async (req, res) => {
       summary,
     });
   } catch (error) {
-    console.error("Failed to summarize document:", error);
-
-    return res.status(500).json({
-      success: false,
-      error: "Failed to summarize document",
-    });
+    return sendAiError(res, error, "Failed to summarize document");
   }
 });
 
@@ -156,12 +177,7 @@ app.post("/api/documents/upload", handleDocumentUpload, async (req, res) => {
       });
     }
 
-    console.error("Failed to process document:", error);
-
-    return res.status(500).json({
-      success: false,
-      error: "Failed to process document",
-    });
+    return sendAiError(res, error, "Failed to process document");
   }
 });
 
@@ -224,12 +240,7 @@ app.post("/api/documents/search", handleDocumentUpload, async (req, res) => {
       });
     }
 
-    console.error("Failed to search document:", error);
-
-    return res.status(500).json({
-      success: false,
-      error: "Failed to search document",
-    });
+    return sendAiError(res, error, "Failed to search document");
   }
 });
 
@@ -292,23 +303,7 @@ app.post("/api/documents/ask", async (req, res) => {
       sources: results,
     });
   } catch (error) {
-    console.error("Failed to answer document question:", error);
-
-    const status =
-      typeof error === "object" &&
-      error !== null &&
-      "status" in error &&
-      error.status === 429
-        ? 503
-        : 500;
-
-    return res.status(status).json({
-      success: false,
-      error:
-        status === 503
-          ? "AI service quota exceeded. Please try again later."
-          : "Failed to answer question",
-    });
+    return sendAiError(res, error, "Failed to answer question");
   }
 });
 
@@ -341,12 +336,7 @@ app.post("/api/documents/index", handleDocumentUpload, async (req, res) => {
       });
     }
 
-    console.error("Failed to index document:", error);
-
-    return res.status(500).json({
-      success: false,
-      error: "Failed to index document",
-    });
+    return sendAiError(res, error, "Failed to index document");
   }
 });
 
