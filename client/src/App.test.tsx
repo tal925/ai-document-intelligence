@@ -39,7 +39,6 @@ describe("App", () => {
   });
 
   it("indexes a PDF and displays an answer with its source", async () => {
-
     vi.mocked(documentApi.indexDocument).mockResolvedValue({
       success: true,
       documentId: "document-123",
@@ -67,8 +66,8 @@ describe("App", () => {
     });
 
     fireEvent.change(screen.getByLabelText(/choose a pdf file/i), {
-  target: { files: [file] },
-});
+      target: { files: [file] },
+    });
 
     expect(
       await screen.findByText("Document indexed successfully (2 chunks)."),
@@ -79,9 +78,12 @@ describe("App", () => {
     const questionInput = screen.getByLabelText("Your question");
 
     fireEvent.change(questionInput, {
-  target: { value: "What is the main point?" },
-});
-fireEvent.click(screen.getByRole("button", { name: /ask a question/i }));
+      target: { value: "What is the main point?" },
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /ask a question/i }),
+    );
 
     expect(
       await screen.findByText("The document explains task management."),
@@ -97,5 +99,25 @@ fireEvent.click(screen.getByRole("button", { name: /ask a question/i }));
       "document-123",
       "What is the main point?",
     );
+  });
+
+  it("shows an error when PDF indexing fails", async () => {
+    vi.mocked(documentApi.indexDocument).mockRejectedValue(
+      new Error("Failed to upload document"),
+    );
+
+    render(<App />);
+
+    const file = new File(["PDF test content"], "document.pdf", {
+      type: "application/pdf",
+    });
+
+    fireEvent.change(screen.getByLabelText(/choose a pdf file/i), {
+      target: { files: [file] },
+    });
+
+    const alert = await screen.findByRole("alert");
+
+    expect(alert.textContent).toContain("Failed to upload document");
   });
 });
