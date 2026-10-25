@@ -1,4 +1,3 @@
-
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import App from "./App.js";
@@ -34,6 +33,27 @@ describe("App", () => {
 
     expect(screen.getByRole("alert").textContent).toContain(
       "Please select a PDF file.",
+    );
+    expect(indexDocumentMock).not.toHaveBeenCalled();
+  });
+
+  it("shows an error when the PDF file exceeds 5 MB", () => {
+    const indexDocumentMock = vi.mocked(documentApi.indexDocument);
+
+    render(<App />);
+
+    const file = new File(
+      [new Uint8Array(5 * 1024 * 1024 + 1)],
+      "large-document.pdf",
+      { type: "application/pdf" },
+    );
+
+    fireEvent.change(screen.getByLabelText(/choose a pdf file/i), {
+      target: { files: [file] },
+    });
+
+    expect(screen.getByRole("alert").textContent).toContain(
+      "The file is too large. Maximum file size is 5 MB.",
     );
     expect(indexDocumentMock).not.toHaveBeenCalled();
   });
@@ -164,7 +184,6 @@ describe("App", () => {
     );
   });
 
-
   it("disables file selection while a question is being answered", async () => {
     vi.mocked(documentApi.indexDocument).mockResolvedValue({
       success: true,
@@ -191,7 +210,6 @@ describe("App", () => {
     render(<App />);
 
     const fileInput = screen.getByLabelText(/choose a pdf file/i);
-
     const file = new File(["PDF test content"], "document.pdf", {
       type: "application/pdf",
     });
@@ -229,4 +247,38 @@ describe("App", () => {
     expect(fileInput).toBeEnabled();
   });
 
+  it("does not submit an empty question", async () => {
+    vi.mocked(documentApi.indexDocument).mockResolvedValue({
+      success: true,
+      documentId: "document-123",
+      message: "Document indexed successfully",
+      chunksCount: 2,
+    });
+
+    render(<App />);
+
+    const file = new File(["PDF test content"], "document.pdf", {
+      type: "application/pdf",
+    });
+
+    fireEvent.change(screen.getByLabelText(/choose a pdf file/i), {
+      target: { files: [file] },
+    });
+
+    expect(
+      await screen.findByText("Document indexed successfully (2 chunks)."),
+    ).toBeTruthy();
+
+    const questionInput = screen.getByLabelText("Your question");
+    const askButton = screen.getByRole("button", {
+      name: /ask a question/i,
+    });
+
+    fireEvent.change(questionInput, {
+      target: { value: "   " },
+    });
+
+    expect(askButton).toBeDisabled();
+    expect(documentApi.askDocument).not.toHaveBeenCalled();
+  });
 });
