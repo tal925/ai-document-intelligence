@@ -281,4 +281,67 @@ describe("App", () => {
     expect(askButton).toBeDisabled();
     expect(documentApi.askDocument).not.toHaveBeenCalled();
   });
+
+  it("does not send another question while a request is pending", async () => {
+    vi.mocked(documentApi.indexDocument).mockResolvedValue({
+     success: true,
+     documentId: "document-123",
+     message: "Document indexed successfully",
+     chunksCount: 2,
+    });
+
+    let resolveAnswer!: (value: {
+     success: true;
+     documentId: string;
+     question: string;
+     answer: string;
+     sources: [];
+    }) => void;
+
+    vi.mocked(documentApi.askDocument).mockImplementation(
+      () =>
+      new Promise((resolve) => {
+        resolveAnswer = resolve;
+      }),
+    );
+
+    render(<App />);
+
+    const file = new File(["PDF test content"], "document.pdf", {
+     type: "application/pdf",
+    });
+
+    fireEvent.change(screen.getByLabelText(/choose a pdf file/i), {
+     target: { files: [file] },
+    });
+
+    expect(
+     await screen.findByText("Document indexed successfully (2 chunks)."),
+    ).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Your question"), {
+     target: { value: "What is the main point?" },
+    });
+
+    const askButton = screen.getByRole("button", {
+     name: /ask a question/i,
+    });
+
+    fireEvent.click(askButton);
+    fireEvent.click(askButton);
+
+    expect(documentApi.askDocument).toHaveBeenCalledTimes(1);
+
+    resolveAnswer({
+     success: true,
+     documentId: "document-123",
+     question: "What is the main point?",
+     answer: "The document explains task management.",
+     sources: [],
+   });
+
+   expect(
+     await screen.findByText("The document explains task management."),
+    ).toBeTruthy();
+  });
 });
