@@ -1,5 +1,5 @@
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { askDocument, indexDocument } from './services/documentApi.js'
 import type {
   AskDocumentResponse,
@@ -10,6 +10,7 @@ import './App.css'
 function getSourceText(source: DocumentSource): string {
   for (const key of ['content', 'text', 'chunk', 'snippet']) {
     const value = source[key]
+
     if (typeof value === 'string' && value.trim()) {
       return value
     }
@@ -33,6 +34,8 @@ function App() {
   const [uploading, setUploading] = useState(false)
   const [asking, setAsking] = useState(false)
   const [error, setError] = useState('')
+
+  const askingRef = useRef(false)
 
   async function handleFileChange(file: File | undefined) {
     if (!file) return
@@ -76,8 +79,11 @@ function App() {
   }
 
   async function handleAsk() {
-    if (!documentId || !question.trim()) return
+    if (!documentId || !question.trim() || askingRef.current) {
+      return
+    }
 
+    askingRef.current = true
     setError('')
     setAnswerResult(null)
     setAsking(true)
@@ -90,6 +96,7 @@ function App() {
         err instanceof Error ? err.message : 'Failed to get an answer.',
       )
     } finally {
+      askingRef.current = false
       setAsking(false)
     }
   }
@@ -215,7 +222,9 @@ function App() {
           {asking ? (
             <div className="empty-state">
               <strong>Finding an answer...</strong>
-              <p>The AI is searching your document and preparing a response.</p>
+              <p>
+                The AI is searching your document and preparing a response.
+              </p>
             </div>
           ) : answerResult ? (
             <div className="answer-content">
