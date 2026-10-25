@@ -6,6 +6,7 @@ vi.mock("./embeddingService.js", () => ({
 
 import { generateEmbedding } from "./embeddingService.js";
 import {
+  MIN_SIMILARITY_SCORE,
   semanticSearch,
   semanticSearchPrepared,
 } from "./semanticSearchService.js";
@@ -23,12 +24,17 @@ describe("semanticSearch", () => {
     { index: 1, content: "The office is open from Sunday to Thursday." },
   ];
 
-  it("should include chunks at the minimum similarity score", async () => {
+  it("should include chunks above the minimum similarity score", async () => {
     const preparedChunks = [
       {
         index: 0,
-        content: "Boundary score chunk",
-        embedding: [0.7, Math.sqrt(1 - 0.7 ** 2)],
+        content: "Above threshold",
+        embedding: [0.63, Math.sqrt(1 - 0.63 ** 2)],
+      },
+      {
+        index: 1,
+        content: "Below threshold",
+        embedding: [0.61, Math.sqrt(1 - 0.61 ** 2)],
       },
     ];
 
@@ -40,7 +46,8 @@ describe("semanticSearch", () => {
     );
 
     expect(results).toHaveLength(1);
-    expect(results[0]?.score).toBeGreaterThanOrEqual(0.7);
+    expect(results[0]?.index).toBe(0);
+    expect(results[0]!.score).toBeGreaterThanOrEqual(MIN_SIMILARITY_SCORE);
   });
 
   it("should return chunks ranked by similarity", async () => {
