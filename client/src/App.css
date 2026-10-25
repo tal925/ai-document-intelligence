@@ -153,7 +153,9 @@
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
 }
 
 .upload-area:hover {
@@ -225,6 +227,18 @@
   outline: none;
   border-color: #7093e7;
   box-shadow: 0 0 0 3px rgb(53 101 213 / 9%);
+}
+
+/* Visible keyboard focus for accessible navigation */
+.ask-button:focus-visible,
+.upload-area input:focus-visible {
+  outline: 3px solid #3565d5;
+  outline-offset: 3px;
+}
+
+.question-panel textarea:focus-visible {
+  outline: 2px solid #3565d5;
+  outline-offset: 2px;
 }
 
 .ask-button {
