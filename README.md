@@ -1,122 +1,165 @@
-# AI Document Intelligence
+# DocuMind — AI Document Intelligence
 
-A TypeScript-based document intelligence API that uses Google Gemini to summarize PDF documents, perform semantic search, and answer questions grounded in indexed document content.
+A full-stack document intelligence application built with TypeScript, Express, React, and Google Gemini. DocuMind extracts text from supported documents, generates AI summaries through its API, performs semantic search, and answers questions grounded in relevant document passages.
 
 ## Features
 
 ### Implemented
 
-- **AI-powered summarization** using Google Gemini.
-- **PDF text extraction** and document summarization.
-- **Text chunking** to split documents into smaller passages for retrieval.
-- **Embeddings and semantic search** to identify relevant document passages.
-- **Document indexing** with generated embeddings and unique document IDs.
-- **Persistent document storage** using a local JSON file, allowing indexed documents and embeddings to survive server restarts.
-- **Retrieval-Augmented Generation (RAG)** to answer questions using relevant passages retrieved from an indexed document.
-- **Source passages and similarity scores** returned with answers when relevant passages are found.
-- **Input validation and error handling** for API requests.
-- **Automated tests** for API routes, core services, and persistence across separate Node.js processes.
+**Backend**
 
-## Tech Stack
+- PDF, TXT, and Markdown text extraction.
+- AI-powered document summarization using Google Gemini.
+- Text chunking and embedding generation.
+- Semantic search over document content.
+- Retrieval-Augmented Generation (RAG) for document-grounded question answering.
+- Relevant source passages and similarity scores in search and Q&A responses.
+- Persistent local JSON storage for indexed documents.
+- Upload size limit of 5 MB and input validation.
+- API error handling and automated tests.
 
-- Node.js
-- TypeScript
-- Express
-- Google Gemini API
-- Gemini embeddings
-- pdf-parse
-- Multer
-- Vitest
-- Supertest
+**Frontend**
+
+- React and TypeScript user interface.
+- PDF upload and indexing.
+- Question submission for indexed documents.
+- AI-generated answer and source display, including similarity scores when available.
+- Loading, success, and error states.
+- Client-side file-type and file-size validation.
+- Protection against duplicate question submissions.
+
+### Planned
+
+- A dedicated UI for document summarization and semantic search.
+- Additional document formats, such as DOCX and spreadsheet files.
+- Database-backed document storage.
+- More extensive retrieval-quality evaluation and end-to-end testing.
+- OCR support for scanned documents.
+- User accounts and access permissions.
+- Conversation history.
+
+## Technology Stack
+
+- **Runtime:** Node.js 24+
+- **Language:** TypeScript
+- **Backend:** Express
+- **Frontend:** React, Vite
+- **AI:** Google Gemini API and embedding models
+- **Document processing:** `pdf-parse`, custom text extraction and chunking
+- **Uploads:** Multer
+- **Testing:** Vitest, Supertest, React Testing Library
+
+## Architecture
+
+1. **Upload:** The frontend sends a PDF file to the backend for indexing.
+2. **Extraction:** The backend extracts text from the supported file.
+3. **Chunking and embeddings:** Text is split into chunks and embeddings are generated.
+4. **Storage:** Indexed chunks and embeddings are saved in a local JSON file.
+5. **Retrieval:** A user question is compared with stored document chunks using semantic search.
+6. **Answer generation:** Relevant passages are sent to Gemini to generate a grounded answer.
+7. **Sources:** The API returns the answer alongside the relevant source passages and similarity scores.
 
 ## API Endpoints
 
-| Method | Endpoint                 | Description                                        |
-| ------ | ------------------------ | -------------------------------------------------- |
-| GET    | `/api/health`            | Check server status                                |
-| POST   | `/api/documents/summary` | Summarize text provided as JSON                    |
-| POST   | `/api/documents/upload`  | Upload a PDF and receive an AI-generated summary   |
-| POST   | `/api/documents/index`   | Upload and index a PDF for later retrieval         |
-| POST   | `/api/documents/search`  | Search document content using semantic similarity  |
-| POST   | `/api/documents/ask`     | Ask a question about an indexed document using RAG |
+| Method | Endpoint                 | Description                                            |
+| ------ | ------------------------ | ------------------------------------------------------ |
+| GET    | `/api/health`            | Check server status                                    |
+| POST   | `/api/documents/summary` | Summarize submitted text                               |
+| POST   | `/api/documents/upload`  | Upload a supported document and return a summary       |
+| POST   | `/api/documents/index`   | Extract, chunk, embed, and persist a document          |
+| POST   | `/api/documents/search`  | Search a newly uploaded or previously indexed document |
+| POST   | `/api/documents/ask`     | Answer a question about an indexed document using RAG  |
 
-## How It Works
+### Notes
 
-### Indexing a Document
-
-1. Upload a PDF to `/api/documents/index`.
-2. The API extracts its text and splits it into chunks.
-3. Gemini generates embeddings for the chunks.
-4. The API saves the chunks and embeddings in a local JSON file and returns a unique `documentId`.
-
-### Searching and Asking Questions
-
-1. Submit a search query to `/api/documents/search`, or ask a question through `/api/documents/ask`.
-2. The API compares the query with the indexed passages using semantic similarity.
-3. For question answering, the most relevant passages are sent to Gemini as context.
-4. Gemini generates an answer grounded in the retrieved content. If sufficient information cannot be found, the API can return a message indicating that the document does not contain enough information.
-
-Indexed documents are stored locally and remain available after a server restart, as long as the storage file is preserved.
+- Document upload and indexing endpoints accept multipart form data with a `file` field.
+- The search endpoint accepts a `query` and either a file or an existing `documentId`.
+- The ask endpoint accepts JS
+ON containing `documentId` and `question`.
+- The maximum upload size is 5 MB.
+- The API currently supports PDF, TXT, and Markdown files. The frontend currently accepts PDF files only.
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js and npm
+- Node.js 24 or later
+- npm
 - A Google Gemini API key
 
-### Installation
+### 1. Install dependencies
+
+From the repository root:
 
 ```bash
 npm install
+npm --prefix client install
 ```
 
-### Environment Variables
+### 2. Configure environment variables
 
-Create a `.env` file in the project root:
+Create a `.env` file in the repository root:
 
 ```env
-GEMINI_API_KEY=your_api_key_here
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
-Do not commit your `.env` file or expose your API key.
+Do not commit `.env` or expose your API key.
 
-### Run the Application
+### 3. Start the backend
 
-Start the development server:
+From the repository root:
 
 ```bash
 npx tsx src/server.ts
 ```
 
-The server runs on port `3000` by default.
+The backend runs on port `3000`.
 
-### Run Tests
+Check its status:
+
+```text
+GET http://localhost:3000/api/health
+```
+
+### 4. Start the frontend
+
+Open a second terminal from the repository root:
+
+```bash
+npm --prefix client run dev
+```
+
+Open the local URL printed by Vite in the terminal.
+
+### 5. Run backend tests
 
 ```bash
 npm test
-```
-
-### TypeScript Check
-
-```bash
 npx tsc --noEmit
 ```
 
-## Current Limitations
+### 6. Run frontend tests and build
 
-- PDF is the currently supported document format.
-- Document data is stored in a local JSON file rather than a dedicated database.
-- Semantic retrieval quality depends on the generated embeddings, similarity threshold, and relevance of the document content.
-- The project currently provides an API rather than a complete end-user web interface.
-- PDF is the currently supported document format, with a maximum upload size of 5 MB.
-- Document data is stored in a local JSON file rather than a dedicated database.
-- Semantic retrieval quality depends on the generated embeddings, similarity threshold, and relevance of the document content.
-- The project currently provides an API rather than a complete end-user web interface.
+```bash
+npm --prefix client test
+npm --prefix client run build
+```
 
-## Planned Improvements
+## Storage and Limitations
 
-- Support for additional document formats.
-- Database-backed storage for improved scalability.
-- Further improvements to retrieval quality, evaluation, and API test coverage.
-- A user-facing interface for uploading documents and interacting with them.
+- Indexed documents are persisted in `data/documents.json` by default.
+- Set `DOCUMENT_STORE_PATH` to use a different storage-file path.
+- Local JSON storage is intended for the current project scope and is not a substitute for a production database.
+- The frontend currently supports PDF upload, while the backend supports PDF, TXT, and Markdown.
+- Document-grounded answers depend on retrieval quality and the content available in the indexed document.
+- Scanned PDFs requiring OCR are not currently supported.
+- The frontend does not yet expose every backend capability; summarization and semantic search are available through the API.
+
+## Project Status
+
+This repository contains a working full-stack prototype with document indexing, semantic retrieval, and grounded question answering. Features listed under **Planned** are not represented as implemented functionality.
+
+## License
+
+No open-source license has been selected for this project yet.
