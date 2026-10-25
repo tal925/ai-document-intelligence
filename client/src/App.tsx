@@ -141,7 +141,7 @@ function App() {
               <input
                 type="file"
                 accept=".pdf,application/pdf"
-                disabled={uploading}
+                disabled={uploading || asking}
                 onChange={(event) => {
                   void handleFileChange(event.target.files?.[0])
                   event.currentTarget.value = ''

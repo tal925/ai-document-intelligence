@@ -120,4 +120,113 @@ describe("App", () => {
 
     expect(alert.textContent).toContain("Failed to upload document");
   });
+
+  it("shows an error when asking a question fails", async () => {
+    vi.mocked(documentApi.indexDocument).mockResolvedValue({
+      success: true,
+      documentId: "document-123",
+      message: "Document indexed successfully",
+      chunksCount: 2,
+    });
+
+    vi.mocked(documentApi.askDocument).mockRejectedValue(
+      new Error("Failed to get an answer."),
+    );
+
+    render(<App />);
+
+    const file = new File(["PDF test content"], "document.pdf", {
+      type: "application/pdf",
+    });
+
+    fireEvent.change(screen.getByLabelText(/choose a pdf file/i), {
+      target: { files: [file] },
+    });
+
+    expect(
+      await screen.findByText("Document indexed successfully (2 chunks)."),
+    ).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Your question"), {
+      target: { value: "What is the main point?" },
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /ask a question/i }),
+    );
+
+    const alert = await screen.findByRole("alert");
+
+    expect(alert.textContent).toContain("Failed to get an answer.");
+    expect(documentApi.askDocument).toHaveBeenCalledWith(
+      "document-123",
+      "What is the main point?",
+    );
+  });
+
+
+  it("disables file selection while a question is being answered", async () => {
+    vi.mocked(documentApi.indexDocument).mockResolvedValue({
+      success: true,
+      documentId: "document-123",
+      message: "Document indexed successfully",
+      chunksCount: 2,
+    });
+
+    let resolveAnswer!: (value: {
+      success: true;
+      documentId: string;
+      question: string;
+      answer: string;
+      sources: [];
+    }) => void;
+
+    vi.mocked(documentApi.askDocument).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveAnswer = resolve;
+        }),
+    );
+
+    render(<App />);
+
+    const fileInput = screen.getByLabelText(/choose a pdf file/i);
+
+    const file = new File(["PDF test content"], "document.pdf", {
+      type: "application/pdf",
+    });
+
+    fireEvent.change(fileInput, {
+      target: { files: [file] },
+    });
+
+    expect(
+      await screen.findByText("Document indexed successfully (2 chunks)."),
+    ).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Your question"), {
+      target: { value: "What is the main point?" },
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /ask a question/i }),
+    );
+
+    expect(fileInput).toBeDisabled();
+
+    resolveAnswer({
+      success: true,
+      documentId: "document-123",
+      question: "What is the main point?",
+      answer: "The document explains task management.",
+      sources: [],
+    });
+
+    expect(
+      await screen.findByText("The document explains task management."),
+    ).toBeTruthy();
+
+    expect(fileInput).toBeEnabled();
+  });
+
 });
