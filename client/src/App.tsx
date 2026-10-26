@@ -1,9 +1,14 @@
 
-import { useRef, useState } from 'react'
-import { askDocument, indexDocument } from './services/documentApi.js'
+import { useEffect, useRef, useState } from 'react'
+import {
+  askDocument,
+  indexDocument,
+  listDocuments,
+} from './services/documentApi.js'
 import type {
   AskDocumentResponse,
   DocumentSource,
+  DocumentSummary,
 } from './services/documentApi.js'
 import './App.css'
 
@@ -35,7 +40,70 @@ function App() {
   const [asking, setAsking] = useState(false)
   const [error, setError] = useState('')
 
+  const [documents, setDocuments] = useState<DocumentSummary[]>([])
+  const [loadingDocuments, setLoadingDocuments] = useState(true)
+  const [libraryError, setLibraryError] = useState('')
+
   const askingRef = useRef(false)
+
+  async function refreshDocuments() {
+    setLibraryError('')
+
+    try {
+      const result = await listDocuments()
+      setDocuments(result.documents)
+    } catch (err) {
+      setLibraryError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to load saved documents.',
+      )
+    }
+  }
+
+  useEffect(() => {
+    let active = true
+
+    async function loadDocuments() {
+      setLoadingDocuments(true)
+
+      try {
+        const result = await listDocuments()
+
+        if (active) {
+          setDocuments(result.documents)
+          setLibraryError('')
+        }
+      } catch (err) {
+        if (active) {
+          setLibraryError(
+            err instanceof Error
+              ? err.message
+              : 'Failed to load saved documents.',
+          )
+        }
+      } finally {
+        if (active) {
+          setLoadingDocuments(false)
+        }
+      }
+    }
+
+    void loadDocuments()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  function handleSelectDocument(document: DocumentSummary) {
+    setDocumentId(document.id)
+    setSelectedFile(null)
+    setQuestion('')
+    setAnswerResult(null)
+    setError('')
+    setIndexedMessage(`Selected saved document: ${document.fileName}`)
+  }
 
   async function handleFileChange(file: File | undefined) {
     if (!file) return
@@ -67,6 +135,8 @@ function App() {
       setIndexedMessage(
         `Document indexed successfully (${result.chunksCount} chunks).`,
       )
+
+      await refreshDocuments()
     } catch (err) {
       setError(
         err instanceof Error
@@ -127,6 +197,58 @@ function App() {
             Upload a document, explore its content, and get answers
             grounded in the information that matters.
           </p>
+        </section>
+
+        <section className="panel library-panel">
+          <div className="panel-heading">
+            <span className="step-number">00</span>
+            <div>
+              <h2>Saved documents</h2>
+              <p>Select a previously indexed document</p>
+            </div>
+          </div>
+
+          {loadingDocuments ? (
+            <p className="hint">Loading saved documents...</p>
+          ) : documents.length > 0 ? (
+            <div className="document-list">
+              {documents.map((document) => (
+                <button
+                  className={`document-item ${
+                    documentId === document.id ? 'selected' : ''
+                  }`}
+                  key={document.id}
+                  type="button"
+                  disabled={uploading || asking}
+                  aria-pressed={documentId === document.id}
+                  onClick={() => handleSelectDocument(document)}
+                >
+                  <span className="document-name">
+                    {document.fileName}
+                  </span>
+                  <span className="document-date">
+                    {Number.isNaN(Date.parse(document.createdAt))
+                      ? 'Date unavailable'
+                      : new Date(document.createdAt).toLocaleDateString()}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="hint">
+              No saved documents yet. Upload a PDF to get started.
+            </p>
+          )}
+
+          {libraryError && (
+            <p className="library-error" role="status">
+              {libraryError}
+              {' '}
+              <button type="button" onClick={() => void refreshDocuments()}>
+                Retry
+              </button>
+            </p>
+          )}
         </section>
 
         <section className="workspace">
@@ -197,7 +319,7 @@ function App() {
 
             <p className="hint">
               {!documentId
-                ? 'Upload a document before asking a question.'
+                ? 'Select a saved document or upload a new one before asking a question.'
                 : 'Answers are generated from relevant passages in your document.'}
             </p>
           </div>
@@ -264,7 +386,7 @@ function App() {
             </div>
           ) : (
             <div className="empty-state">
-              <div className="empty-icon">✧</div>
+              <div className="empty-icon">§</div>
               <strong>Your answer will appear here</strong>
               <p>Upload a document and ask a question to get started.</p>
             </div>

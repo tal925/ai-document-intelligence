@@ -8,7 +8,11 @@ import {
   semanticSearch,
   semanticSearchPrepared,
 } from "./services/semanticSearchService.js";
-import { saveDocument, getDocument } from "./services/documentStore.js";
+import {
+  saveDocument,
+  getDocument,
+  listDocuments,
+} from "./services/documentStore.js";
 import { extractTextFromFile } from "./services/documentTextService.js";
 
 const app = express();
@@ -124,6 +128,24 @@ app.get("/api/health", (_req, res) => {
     success: true,
     message: "Server is running",
   });
+});
+
+app.get("/api/documents", (_req, res) => {
+  try {
+    const documents = listDocuments();
+
+    return res.status(200).json({
+      success: true,
+      documents,
+    });
+  } catch (error) {
+    console.error("Failed to list documents:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: "Failed to list documents",
+    });
+  }
 });
 
 // Generate a summary for submitted text
@@ -320,7 +342,7 @@ app.post("/api/documents/index", handleDocumentUpload, async (req, res) => {
     const content = await extractDocumentText(req.file);
     const chunks = chunkText(content);
     const embeddedChunks = await prepareChunks(chunks);
-    const documentId = saveDocument(embeddedChunks);
+    const documentId = saveDocument(embeddedChunks, req.file.originalname);
 
     return res.status(201).json({
       success: true,

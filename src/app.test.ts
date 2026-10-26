@@ -9,7 +9,11 @@ import {
   semanticSearch,
   semanticSearchPrepared,
 } from "./services/semanticSearchService.js";
-import { saveDocument, getDocument } from "./services/documentStore.js";
+import {
+  saveDocument,
+  getDocument,
+  listDocuments,
+} from "./services/documentStore.js";
 import { extractTextFromFile } from "./services/documentTextService.js";
 
 // Replace Gemini with controllable mocks.
@@ -39,6 +43,7 @@ vi.mock("./services/semanticSearchService.js", () => ({
 vi.mock("./services/documentStore.js", () => ({
   saveDocument: vi.fn(),
   getDocument: vi.fn(),
+  listDocuments: vi.fn(),
 }));
 
 // Replace TXT and Markdown extraction with a controllable mock.
@@ -62,6 +67,43 @@ describe("GET /api/health", () => {
     expect(response.body).toEqual({
       success: true,
       message: "Server is running",
+    });
+  });
+});
+
+describe("GET /api/documents", () => {
+  it("should return the list of stored documents", async () => {
+    const documents = [
+      {
+        id: "document-123",
+        fileName: "report.pdf",
+        createdAt: "2026-10-26T10:00:00.000Z",
+      },
+    ];
+
+    vi.mocked(listDocuments).mockReturnValue(documents);
+
+    const response = await request(app).get("/api/documents");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      success: true,
+      documents,
+    });
+    expect(listDocuments).toHaveBeenCalledOnce();
+  });
+
+  it("should return 500 when listing documents fails", async () => {
+    vi.mocked(listDocuments).mockImplementation(() => {
+      throw new Error("Storage unavailable");
+    });
+
+    const response = await request(app).get("/api/documents");
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      success: false,
+      error: "Failed to list documents",
     });
   });
 });
@@ -438,7 +480,7 @@ describe("POST /api/documents/index", () => {
         content: "Employees can work from home two days a week.",
       },
     ]);
-    expect(saveDocument).toHaveBeenCalledWith(embeddedChunks);
+    expect(saveDocument).toHaveBeenCalledWith(embeddedChunks, "sample.pdf");
   });
 
   it("should index a TXT file successfully", async () => {
@@ -464,6 +506,7 @@ describe("POST /api/documents/index", () => {
     expect(response.status).toBe(201);
     expect(response.body.documentId).toBe("txt-document-id");
     expect(response.body.chunksCount).toBe(1);
+    expect(saveDocument).toHaveBeenCalledWith(embeddedChunks, "document.txt");
   });
 
   it("should return 400 when the uploaded file type is unsupported", async () => {

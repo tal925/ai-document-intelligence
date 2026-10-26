@@ -1,9 +1,58 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { askDocument, indexDocument } from "./documentApi.js";
+import { askDocument, indexDocument, listDocuments } from "./documentApi.js";
 
 describe("documentApi", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  describe("listDocuments", () => {
+    it("should fetch and return the document list", async () => {
+      const responseData = {
+        success: true,
+        documents: [
+          {
+            id: "doc-123",
+            fileName: "policy.pdf",
+            createdAt: "2026-10-22T10:00:00.000Z",
+          },
+        ],
+      };
+
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify(responseData), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+      vi.stubGlobal("fetch", fetchMock);
+
+      const result = await listDocuments();
+
+      expect(fetchMock).toHaveBeenCalledWith("/api/documents");
+      expect(result).toEqual(responseData);
+    });
+
+    it("should throw the server error message when listing fails", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              success: false,
+              error: "Failed to list documents",
+            }),
+            {
+              status: 500,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
+        ),
+      );
+
+      await expect(listDocuments()).rejects.toThrow("Failed to list documents");
+    });
   });
 
   describe("askDocument", () => {

@@ -22,6 +22,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 
 - React and TypeScript user interface.
 - PDF upload and indexing.
+- Saved document library with document selection and reuse for follow-up questions.
 - Question submission for indexed documents.
 - AI-generated answer and source display, including similarity scores when available.
 - Loading, success, and error states.
@@ -54,7 +55,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 1. **Upload:** The frontend sends a PDF file to the backend for indexing.
 2. **Extraction:** The backend extracts text from the supported file.
 3. **Chunking and embeddings:** Text is split into chunks and embeddings are generated.
-4. **Storage:** Indexed chunks and embeddings are saved in a local JSON file.
+4. **Storage:** Indexed chunks and embeddings are saved in a local JSON file, and document metadata is exposed through the document-list API for the frontend library.
 5. **Retrieval:** A user question is compared with stored document chunks using semantic search.
 6. **Answer generation:** Relevant passages are sent to Gemini to generate a grounded answer.
 7. **Sources:** The API returns the answer alongside the relevant source passages and similarity scores.
@@ -64,6 +65,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 | Method | Endpoint                 | Description                                            |
 | ------ | ------------------------ | ------------------------------------------------------ |
 | GET    | `/api/health`            | Check server status                                    |
+| GET    | `/api/documents`         | List previously indexed documents                      |
 | POST   | `/api/documents/summary` | Summarize submitted text                               |
 | POST   | `/api/documents/upload`  | Upload a supported document and return a summary       |
 | POST   | `/api/documents/index`   | Extract, chunk, embed, and persist a document          |
@@ -75,7 +77,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - Document upload and indexing endpoints accept multipart form data with a `file` field.
 - The search endpoint accepts a `query` and either a file or an existing `documentId`.
 - The ask endpoint accepts JS
-ON containing `documentId` and `question`.
+  ON containing `documentId` and `question`.
 - The maximum upload size is 5 MB.
 - The API currently supports PDF, TXT, and Markdown files. The frontend currently accepts PDF files only.
 

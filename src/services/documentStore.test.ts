@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { getDocument, saveDocument } from "./documentStore.js";
+import { getDocument, listDocuments, saveDocument } from "./documentStore.js";
 import type { EmbeddedChunk } from "./semanticSearchService.js";
 
 describe("documentStore", () => {
@@ -12,11 +12,11 @@ describe("documentStore", () => {
   ];
 
   beforeEach(() => {
-    // The current store uses a Map, so each test uses a unique document ID.
+    // Each test saves its own document with a unique ID.
   });
 
   it("should save a document and return its ID", () => {
-    const documentId = saveDocument(chunks);
+    const documentId = saveDocument(chunks, "reminders.pdf");
 
     expect(documentId).toBeTruthy();
     expect(getDocument(documentId)).toEqual(chunks);
@@ -27,9 +27,37 @@ describe("documentStore", () => {
   });
 
   it("should preserve embeddings when retrieving a document", () => {
-    const documentId = saveDocument(chunks);
+    const documentId = saveDocument(chunks, "reminders.pdf");
     const savedChunks = getDocument(documentId);
 
     expect(savedChunks?.[0]?.embedding).toEqual([0.1, 0.2, 0.3]);
+  });
+
+  it("should list saved documents with their metadata", () => {
+    const documentId = saveDocument(chunks, "reminders.pdf");
+
+    const documents = listDocuments();
+    const savedDocument = documents.find(
+      (document) => document.id === documentId,
+    );
+
+    expect(savedDocument).toBeDefined();
+    expect(savedDocument?.fileName).toBe("reminders.pdf");
+    expect(savedDocument?.createdAt).toBeTruthy();
+    expect(Number.isNaN(Date.parse(savedDocument!.createdAt))).toBe(false);
+    expect(savedDocument).not.toHaveProperty("chunks");
+  });
+
+  it("should list newer documents before older documents", async () => {
+    const firstId = saveDocument(chunks, "first.pdf");
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    const secondId = saveDocument(chunks, "second.pdf");
+    const documents = listDocuments();
+
+    expect(
+      documents.findIndex((document) => document.id === secondId),
+    ).toBeLessThan(documents.findIndex((document) => document.id === firstId));
   });
 });

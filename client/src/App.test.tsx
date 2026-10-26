@@ -6,11 +6,16 @@ import * as documentApi from "./services/documentApi.js";
 vi.mock("./services/documentApi.js", () => ({
   askDocument: vi.fn(),
   indexDocument: vi.fn(),
+  listDocuments: vi.fn(),
 }));
 
 describe("App", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(documentApi.listDocuments).mockResolvedValue({
+  success: true,
+  documents: [],
+});
   });
 
   afterEach(() => {
@@ -343,5 +348,103 @@ describe("App", () => {
    expect(
      await screen.findByText("The document explains task management."),
     ).toBeTruthy();
+  });
+
+    it("displays saved documents in the library", async () => {
+    vi.mocked(documentApi.listDocuments).mockResolvedValue({
+      success: true,
+      documents: [
+        {
+          id: "saved-doc-123",
+          fileName: "company-policy.pdf",
+          createdAt: "2026-10-20T10:00:00.000Z",
+        },
+      ],
+    });
+
+    render(<App />);
+
+    expect(
+      await screen.findByText("company-policy.pdf"),
+    ).toBeTruthy();
+
+    expect(
+      screen.getByText(
+        new Date("2026-10-20T10:00:00.000Z").toLocaleDateString(),
+      ),
+    ).toBeTruthy();
+  });
+
+  it("selects a saved document and asks a question without uploading it", async () => {
+    vi.mocked(documentApi.listDocuments).mockResolvedValue({
+      success: true,
+      documents: [
+        {
+          id: "saved-doc-123",
+          fileName: "company-policy.pdf",
+          createdAt: "2026-10-20T10:00:00.000Z",
+        },
+      ],
+    });
+
+    vi.mocked(documentApi.askDocument).mockResolvedValue({
+      success: true,
+      documentId: "saved-doc-123",
+      question: "What is the policy?",
+      answer: "The policy describes company procedures.",
+      sources: [],
+    });
+
+    render(<App />);
+
+    const savedDocument = await screen.findByRole("button", {
+      name: /company-policy\.pdf/i,
+    });
+
+    fireEvent.click(savedDocument);
+
+    fireEvent.change(screen.getByLabelText("Your question"), {
+      target: { value: "What is the policy?" },
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /ask a question/i }),
+    );
+
+    expect(
+      await screen.findByText(
+        "The policy describes company procedures.",
+      ),
+    ).toBeTruthy();
+
+    expect(documentApi.askDocument).toHaveBeenCalledWith(
+      "saved-doc-123",
+      "What is the policy?",
+    );
+
+    expect(documentApi.indexDocument).not.toHaveBeenCalled();
+  });
+
+  it("shows an error when loading saved documents fails and allows retry", async () => {
+    vi.mocked(documentApi.listDocuments)
+      .mockRejectedValueOnce(new Error("Could not load saved documents"))
+      .mockResolvedValueOnce({
+        success: true,
+        documents: [],
+      });
+
+    render(<App />);
+
+    expect(
+      await screen.findByText(/could not load saved documents/i),
+    ).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /retry/i }),
+    );
+
+    await screen.findByText(/no saved documents/i);
+
+    expect(documentApi.listDocuments).toHaveBeenCalledTimes(2);
   });
 });

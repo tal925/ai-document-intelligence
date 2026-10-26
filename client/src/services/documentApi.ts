@@ -60,6 +60,27 @@ export async function indexDocument(
   return (await response.json()) as IndexDocumentResponse;
 }
 
+export interface DocumentSummary {
+  id: string;
+  fileName: string;
+  createdAt: string;
+}
+
+export async function listDocuments(): Promise<ListDocumentsResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/documents`);
+
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+
+  return (await response.json()) as ListDocumentsResponse;
+}
+
+export interface ListDocumentsResponse {
+  success: boolean;
+  documents: DocumentSummary[];
+}
+
 export async function askDocument(
   documentId: string,
   question: string,
