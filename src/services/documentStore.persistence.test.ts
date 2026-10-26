@@ -84,4 +84,87 @@ describe("documentStore persistence", () => {
       rmSync(temporaryDirectory, { recursive: true, force: true });
     }
   });
+
+  it("should keep a document deleted after the store module is loaded again", () => {
+    const temporaryDirectory = mkdtempSync(
+      join(tmpdir(), "document-store-delete-test-"),
+    );
+    const storageFile = join(temporaryDirectory, "documents.json");
+
+    try {
+      const storeModule = pathToFileURL(
+        resolve("src/services/documentStore.ts"),
+      ).href;
+
+      const deleteResult = spawnSync(
+        process.execPath,
+        [
+          "--import",
+          "tsx",
+          "--input-type=module",
+          "-e",
+          `
+            const store = await import(${JSON.stringify(storeModule)});
+            const id = store.saveDocument([
+              {
+                index: 0,
+                content: "Document to delete",
+                embedding: [0.1, 0.2, 0.3]
+              }
+            ]);
+            const deleted = store.deleteDocument(id);
+            console.log(JSON.stringify({ id, deleted }));
+          `,
+        ],
+        {
+          encoding: "utf-8",
+          env: {
+            ...process.env,
+            DOCUMENT_STORE_PATH: storageFile,
+          },
+        },
+      );
+
+      expect(deleteResult.status, deleteResult.stderr).toBe(0);
+
+      const { id: documentId, deleted } = JSON.parse(
+        deleteResult.stdout.trim(),
+      );
+
+      expect(deleted).toBe(true);
+      expect(documentId).toBeTruthy();
+
+      const readResult = spawnSync(
+        process.execPath,
+        [
+          "--import",
+          "tsx",
+          "--input-type=module",
+          "-e",
+          `
+            const store = await import(${JSON.stringify(storeModule)});
+            console.log(JSON.stringify({
+              document: store.getDocument(${JSON.stringify(documentId)}) ?? null,
+              documents: store.listDocuments()
+            }));
+          `,
+        ],
+        {
+          encoding: "utf-8",
+          env: {
+            ...process.env,
+            DOCUMENT_STORE_PATH: storageFile,
+          },
+        },
+      );
+
+      expect(readResult.status, readResult.stderr).toBe(0);
+      expect(JSON.parse(readResult.stdout.trim())).toEqual({
+        document: null,
+        documents: [],
+      });
+    } finally {
+      rmSync(temporaryDirectory, { recursive: true, force: true });
+    }
+  });
 });

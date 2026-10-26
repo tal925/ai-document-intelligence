@@ -1,10 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import App from "./App.js";
 import * as documentApi from "./services/documentApi.js";
 
 vi.mock("./services/documentApi.js", () => ({
   askDocument: vi.fn(),
+  deleteDocument: vi.fn(),
   indexDocument: vi.fn(),
   listDocuments: vi.fn(),
 }));
@@ -12,19 +20,23 @@ vi.mock("./services/documentApi.js", () => ({
 describe("App", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
     vi.mocked(documentApi.listDocuments).mockResolvedValue({
-  success: true,
-  documents: [],
-});
+      success: true,
+      documents: [],
+    });
+
+    vi.mocked(documentApi.deleteDocument).mockResolvedValue(undefined);
+
+    vi.spyOn(window, "confirm").mockReturnValue(true);
   });
 
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
   });
 
   it("shows an error when a non-PDF file is selected", () => {
-    const indexDocumentMock = vi.mocked(documentApi.indexDocument);
-
     render(<App />);
 
     const fileInput = screen.getByLabelText(/choose a pdf file/i);
@@ -39,12 +51,10 @@ describe("App", () => {
     expect(screen.getByRole("alert").textContent).toContain(
       "Please select a PDF file.",
     );
-    expect(indexDocumentMock).not.toHaveBeenCalled();
+    expect(documentApi.indexDocument).not.toHaveBeenCalled();
   });
 
   it("shows an error when the PDF file exceeds 5 MB", () => {
-    const indexDocumentMock = vi.mocked(documentApi.indexDocument);
-
     render(<App />);
 
     const file = new File(
@@ -60,7 +70,7 @@ describe("App", () => {
     expect(screen.getByRole("alert").textContent).toContain(
       "The file is too large. Maximum file size is 5 MB.",
     );
-    expect(indexDocumentMock).not.toHaveBeenCalled();
+    expect(documentApi.indexDocument).not.toHaveBeenCalled();
   });
 
   it("indexes a PDF and displays an answer with its source", async () => {
@@ -100,9 +110,7 @@ describe("App", () => {
 
     expect(documentApi.indexDocument).toHaveBeenCalledWith(file);
 
-    const questionInput = screen.getByLabelText("Your question");
-
-    fireEvent.change(questionInput, {
+    fireEvent.change(screen.getByLabelText("Your question"), {
       target: { value: "What is the main point?" },
     });
 
@@ -141,9 +149,9 @@ describe("App", () => {
       target: { files: [file] },
     });
 
-    const alert = await screen.findByRole("alert");
-
-    expect(alert.textContent).toContain("Failed to upload document");
+    expect(
+      (await screen.findByRole("alert")).textContent,
+    ).toContain("Failed to upload document");
   });
 
   it("shows an error when asking a question fails", async () => {
@@ -180,9 +188,10 @@ describe("App", () => {
       screen.getByRole("button", { name: /ask a question/i }),
     );
 
-    const alert = await screen.findByRole("alert");
+    expect(
+      (await screen.findByRole("alert")).textContent,
+    ).toContain("Failed to get an answer.");
 
-    expect(alert.textContent).toContain("Failed to get an answer.");
     expect(documentApi.askDocument).toHaveBeenCalledWith(
       "document-123",
       "What is the main point?",
@@ -289,47 +298,47 @@ describe("App", () => {
 
   it("does not send another question while a request is pending", async () => {
     vi.mocked(documentApi.indexDocument).mockResolvedValue({
-     success: true,
-     documentId: "document-123",
-     message: "Document indexed successfully",
-     chunksCount: 2,
+      success: true,
+      documentId: "document-123",
+      message: "Document indexed successfully",
+      chunksCount: 2,
     });
 
     let resolveAnswer!: (value: {
-     success: true;
-     documentId: string;
-     question: string;
-     answer: string;
-     sources: [];
+      success: true;
+      documentId: string;
+      question: string;
+      answer: string;
+      sources: [];
     }) => void;
 
     vi.mocked(documentApi.askDocument).mockImplementation(
       () =>
-      new Promise((resolve) => {
-        resolveAnswer = resolve;
-      }),
+        new Promise((resolve) => {
+          resolveAnswer = resolve;
+        }),
     );
 
     render(<App />);
 
     const file = new File(["PDF test content"], "document.pdf", {
-     type: "application/pdf",
+      type: "application/pdf",
     });
 
     fireEvent.change(screen.getByLabelText(/choose a pdf file/i), {
-     target: { files: [file] },
+      target: { files: [file] },
     });
 
     expect(
-     await screen.findByText("Document indexed successfully (2 chunks)."),
+      await screen.findByText("Document indexed successfully (2 chunks)."),
     ).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText("Your question"), {
-     target: { value: "What is the main point?" },
+      target: { value: "What is the main point?" },
     });
 
     const askButton = screen.getByRole("button", {
-     name: /ask a question/i,
+      name: /ask a question/i,
     });
 
     fireEvent.click(askButton);
@@ -338,19 +347,19 @@ describe("App", () => {
     expect(documentApi.askDocument).toHaveBeenCalledTimes(1);
 
     resolveAnswer({
-     success: true,
-     documentId: "document-123",
-     question: "What is the main point?",
-     answer: "The document explains task management.",
-     sources: [],
-   });
+      success: true,
+      documentId: "document-123",
+      question: "What is the main point?",
+      answer: "The document explains task management.",
+      sources: [],
+    });
 
-   expect(
-     await screen.findByText("The document explains task management."),
+    expect(
+      await screen.findByText("The document explains task management."),
     ).toBeTruthy();
   });
 
-    it("displays saved documents in the library", async () => {
+  it("displays saved documents in the library", async () => {
     vi.mocked(documentApi.listDocuments).mockResolvedValue({
       success: true,
       documents: [
@@ -397,11 +406,8 @@ describe("App", () => {
 
     render(<App />);
 
-    const savedDocument = await screen.findByRole("button", {
-      name: /company-policy\.pdf/i,
-    });
-
-    fireEvent.click(savedDocument);
+    const savedDocument = await screen.findByText("company-policy.pdf");
+    fireEvent.click(savedDocument.closest("button")!);
 
     fireEvent.change(screen.getByLabelText("Your question"), {
       target: { value: "What is the policy?" },
@@ -412,9 +418,7 @@ describe("App", () => {
     );
 
     expect(
-      await screen.findByText(
-        "The policy describes company procedures.",
-      ),
+      await screen.findByText("The policy describes company procedures."),
     ).toBeTruthy();
 
     expect(documentApi.askDocument).toHaveBeenCalledWith(
@@ -439,12 +443,95 @@ describe("App", () => {
       await screen.findByText(/could not load saved documents/i),
     ).toBeTruthy();
 
-    fireEvent.click(
-      screen.getByRole("button", { name: /retry/i }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /retry/i }));
 
     await screen.findByText(/no saved documents/i);
 
     expect(documentApi.listDocuments).toHaveBeenCalledTimes(2);
+  });
+
+  it("deletes a saved document after confirmation", async () => {
+    vi.mocked(documentApi.listDocuments).mockResolvedValue({
+      success: true,
+      documents: [
+        {
+          id: "saved-doc-123",
+          fileName: "company-policy.pdf",
+          createdAt: "2026-10-20T10:00:00.000Z",
+        },
+      ],
+    });
+
+    render(<App />);
+
+    const deleteButton = await screen.findByRole("button", {
+      name: "Delete company-policy.pdf",
+    });
+
+    fireEvent.click(deleteButton);
+
+    expect(window.confirm).toHaveBeenCalled();
+    expect(documentApi.deleteDocument).toHaveBeenCalledWith("saved-doc-123");
+
+    await waitFor(() => {
+      expect(screen.queryByText("company-policy.pdf")).not.toBeInTheDocument();
+    });
+  });
+
+  it("does not delete a saved document when confirmation is cancelled", async () => {
+    vi.mocked(documentApi.listDocuments).mockResolvedValue({
+      success: true,
+      documents: [
+        {
+          id: "saved-doc-123",
+          fileName: "company-policy.pdf",
+          createdAt: "2026-10-20T10:00:00.000Z",
+        },
+      ],
+    });
+
+    vi.mocked(window.confirm).mockReturnValue(false);
+
+    render(<App />);
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Delete company-policy.pdf",
+      }),
+    );
+
+    expect(documentApi.deleteDocument).not.toHaveBeenCalled();
+    expect(screen.getByText("company-policy.pdf")).toBeInTheDocument();
+  });
+
+  it("shows an error if deleting a saved document fails", async () => {
+    vi.mocked(documentApi.listDocuments).mockResolvedValue({
+      success: true,
+      documents: [
+        {
+          id: "saved-doc-123",
+          fileName: "company-policy.pdf",
+          createdAt: "2026-10-20T10:00:00.000Z",
+        },
+      ],
+    });
+
+    vi.mocked(documentApi.deleteDocument).mockRejectedValue(
+      new Error("Failed to delete document"),
+    );
+
+    render(<App />);
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Delete company-policy.pdf",
+      }),
+    );
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Failed to delete document",
+    );
+
+    expect(screen.getByText("company-policy.pdf")).toBeInTheDocument();
   });
 });

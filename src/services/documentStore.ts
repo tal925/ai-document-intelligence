@@ -112,3 +112,15 @@ export function listDocuments(): Omit<StoredDocument, "chunks">[] {
     }))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
+export function deleteDocument(documentId: string): boolean {
+  const documents = readDocuments();
+
+  if (!documents[documentId]) {
+    return false;
+  }
+
+  delete documents[documentId];
+  writeDocuments(documents);
+
+  return true;
+}

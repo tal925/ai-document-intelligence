@@ -1,3 +1,4 @@
+
 # DocuMind — AI Document Intelligence
 
 A full-stack document intelligence application built with TypeScript, Express, React, and Google Gemini. DocuMind extracts text from supported documents, generates AI summaries through its API, performs semantic search, and answers questions grounded in relevant document passages.
@@ -15,6 +16,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - Retrieval-Augmented Generation (RAG) for document-grounded question answering.
 - Relevant source passages and similarity scores in search and Q&A responses.
 - Persistent local JSON storage for indexed documents.
+- Document deletion from persistent storage.
 - Upload size limit of 5 MB and input validation.
 - API error handling and automated tests.
 
@@ -23,8 +25,9 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - React and TypeScript user interface.
 - PDF upload and indexing.
 - Saved document library with document selection and reuse for follow-up questions.
+- Ability to delete saved documents from the library.
 - Question submission for indexed documents.
-- AI-generated answer and source display, including similarity scores when available.
+- AI-generated answers and source display, including similarity scores when available.
 - Loading, success, and error states.
 - Client-side file-type and file-size validation.
 - Protection against duplicate question submissions.
@@ -54,32 +57,34 @@ A full-stack document intelligence application built with TypeScript, Express, R
 
 1. **Upload:** The frontend sends a PDF file to the backend for indexing.
 2. **Extraction:** The backend extracts text from the supported file.
-3. **Chunking and embeddings:** Text is split into chunks and embeddings are generated.
-4. **Storage:** Indexed chunks and embeddings are saved in a local JSON file, and document metadata is exposed through the document-list API for the frontend library.
+3. **Chunking and embeddings:** Text is split into chunks, and embeddings are generated.
+4. **Storage:** Indexed chunks and embeddings are saved in a local JSON file. Document metadata is exposed through the document-list API for the frontend library.
 5. **Retrieval:** A user question is compared with stored document chunks using semantic search.
 6. **Answer generation:** Relevant passages are sent to Gemini to generate a grounded answer.
-7. **Sources:** The API returns the answer alongside the relevant source passages and similarity scores.
+7. **Sources:** The API returns the answer alongside relevant source passages and similarity scores.
+8. **Deletion:** Users can delete saved documents through the frontend. The backend removes the corresponding document from persistent storage.
 
 ## API Endpoints
 
-| Method | Endpoint                 | Description                                            |
-| ------ | ------------------------ | ------------------------------------------------------ |
-| GET    | `/api/health`            | Check server status                                    |
-| GET    | `/api/documents`         | List previously indexed documents                      |
-| POST   | `/api/documents/summary` | Summarize submitted text                               |
-| POST   | `/api/documents/upload`  | Upload a supported document and return a summary       |
-| POST   | `/api/documents/index`   | Extract, chunk, embed, and persist a document          |
-| POST   | `/api/documents/search`  | Search a newly uploaded or previously indexed document |
-| POST   | `/api/documents/ask`     | Answer a question about an indexed document using RAG  |
+| Method | Endpoint                     | Description                                            |
+| ------ | ---------------------------- | ------------------------------------------------------ |
+| GET    | `/api/health`                | Check server status                                    |
+| GET    | `/api/documents`             | List previously indexed documents                      |
+| POST   | `/api/documents/summary`     | Summarize submitted text                               |
+| POST   | `/api/documents/upload`      | Upload a supported document and return a summary       |
+| POST   | `/api/documents/index`       | Extract, chunk, embed, and persist a document          |
+| POST   | `/api/documents/search`      | Search a newly uploaded or previously indexed document |
+| POST   | `/api/documents/ask`         | Answer a question about an indexed document using RAG  |
+| DELETE | `/api/documents/:documentId` | Delete an indexed document from persistent storage     |
 
 ### Notes
 
 - Document upload and indexing endpoints accept multipart form data with a `file` field.
 - The search endpoint accepts a `query` and either a file or an existing `documentId`.
-- The ask endpoint accepts JS
-  ON containing `documentId` and `question`.
+- The ask endpoint accepts JSON containing `documentId` and `question`.
 - The maximum upload size is 5 MB.
 - The API currently supports PDF, TXT, and Markdown files. The frontend currently accepts PDF files only.
+- Deleting a document removes its saved content from the local document store.
 
 ## Getting Started
 
@@ -160,7 +165,7 @@ npm --prefix client run build
 
 ## Project Status
 
-This repository contains a working full-stack prototype with document indexing, semantic retrieval, and grounded question answering. Features listed under **Planned** are not represented as implemented functionality.
+This repository contains a working full-stack prototype with document indexing, semantic retrieval, grounded question answering, and document management. Features listed under **Planned** are not represented as implemented functionality.
 
 ## License
 

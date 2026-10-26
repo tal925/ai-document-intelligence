@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { getDocument, listDocuments, saveDocument } from "./documentStore.js";
+import {
+  deleteDocument,
+  getDocument,
+  listDocuments,
+  saveDocument,
+} from "./documentStore.js";
 import type { EmbeddedChunk } from "./semanticSearchService.js";
 
 describe("documentStore", () => {
@@ -59,5 +64,26 @@ describe("documentStore", () => {
     expect(
       documents.findIndex((document) => document.id === secondId),
     ).toBeLessThan(documents.findIndex((document) => document.id === firstId));
+  });
+
+  it("should delete an existing document", () => {
+    const documentId = saveDocument(chunks, "to-delete.pdf");
+
+    const deleted = deleteDocument(documentId);
+
+    expect(deleted).toBe(true);
+    expect(getDocument(documentId)).toBeUndefined();
+    expect(listDocuments().some((document) => document.id === documentId)).toBe(
+      false,
+    );
+  });
+
+  it("should return false when deleting an unknown document ID", () => {
+    const existingId = saveDocument(chunks, "keep.pdf");
+
+    const deleted = deleteDocument("unknown-document-id");
+
+    expect(deleted).toBe(false);
+    expect(getDocument(existingId)).toEqual(chunks);
   });
 });

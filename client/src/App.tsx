@@ -1,7 +1,7 @@
-
 import { useEffect, useRef, useState } from 'react'
 import {
   askDocument,
+  deleteDocument,
   indexDocument,
   listDocuments,
 } from './services/documentApi.js'
@@ -34,8 +34,9 @@ function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [documentId, setDocumentId] = useState('')
   const [indexedMessage, setIndexedMessage] = useState('')
-  const [answerResult, setAnswerResult] =
-    useState<AskDocumentResponse | null>(null)
+  const [answerResult, setAnswerResult] = useState<AskDocumentResponse | null>(
+    null,
+  )
   const [uploading, setUploading] = useState(false)
   const [asking, setAsking] = useState(false)
   const [error, setError] = useState('')
@@ -43,6 +44,7 @@ function App() {
   const [documents, setDocuments] = useState<DocumentSummary[]>([])
   const [loadingDocuments, setLoadingDocuments] = useState(true)
   const [libraryError, setLibraryError] = useState('')
+  const [deletingDocumentId, setDeletingDocumentId] = useState('')
 
   const askingRef = useRef(false)
 
@@ -54,9 +56,7 @@ function App() {
       setDocuments(result.documents)
     } catch (err) {
       setLibraryError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to load saved documents.',
+        err instanceof Error ? err.message : 'Failed to load saved documents.',
       )
     }
   }
@@ -103,6 +103,44 @@ function App() {
     setAnswerResult(null)
     setError('')
     setIndexedMessage(`Selected saved document: ${document.fileName}`)
+  }
+
+  async function handleDeleteDocument(document: DocumentSummary) {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${document.fileName}"?`,
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    setLibraryError('')
+    setError('')
+    setDeletingDocumentId(document.id)
+
+    try {
+      await deleteDocument(document.id)
+
+      setDocuments((currentDocuments) =>
+        currentDocuments.filter((item) => item.id !== document.id),
+      )
+
+      if (documentId === document.id) {
+        setDocumentId('')
+        setSelectedFile(null)
+        setQuestion('')
+        setAnswerResult(null)
+        setIndexedMessage('')
+      }
+    } catch (err) {
+      setLibraryError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to delete the saved document.',
+      )
+    } finally {
+      setDeletingDocumentId('')
+    }
   }
 
   async function handleFileChange(file: File | undefined) {
@@ -162,9 +200,7 @@ function App() {
       const result = await askDocument(documentId, question.trim())
       setAnswerResult(result)
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to get an answer.',
-      )
+      setError(err instanceof Error ? err.message : 'Failed to get an answer.')
     } finally {
       askingRef.current = false
       setAsking(false)
@@ -194,8 +230,8 @@ function App() {
             <span>Ask better questions.</span>
           </h1>
           <p className="subtitle">
-            Upload a document, explore its content, and get answers
-            grounded in the information that matters.
+            Upload a document, explore its content, and get answers grounded in
+            the information that matters.
           </p>
         </section>
 
@@ -213,25 +249,40 @@ function App() {
           ) : documents.length > 0 ? (
             <div className="document-list">
               {documents.map((document) => (
-                <button
-                  className={`document-item ${
-                    documentId === document.id ? 'selected' : ''
-                  }`}
-                  key={document.id}
-                  type="button"
-                  disabled={uploading || asking}
-                  aria-pressed={documentId === document.id}
-                  onClick={() => handleSelectDocument(document)}
-                >
-                  <span className="document-name">
-                    {document.fileName}
-                  </span>
-                  <span className="document-date">
-                    {Number.isNaN(Date.parse(document.createdAt))
-                      ? 'Date unavailable'
-                      : new Date(document.createdAt).toLocaleDateString()}
-                  </span>
-                </button>
+                <div className="document-item-wrapper" key={document.id}>
+                  <button
+                    className={`document-item ${
+                      documentId === document.id ? 'selected' : ''
+                    }`}
+                    type="button"
+                    disabled={
+                      uploading || asking || Boolean(deletingDocumentId)
+                    }
+                    aria-pressed={documentId === document.id}
+                    onClick={() => handleSelectDocument(document)}
+                  >
+                    <span className="document-name">{document.fileName}</span>
+                    <span className="document-date">
+                      {Number.isNaN(Date.parse(document.createdAt))
+                        ? 'Date unavailable'
+                        : new Date(document.createdAt).toLocaleDateString()}
+                    </span>
+                  </button>
+
+                  <button
+                    className="delete-document-button"
+                    type="button"
+                    aria-label={`Delete ${document.fileName}`}
+                    disabled={
+                      uploading || asking || Boolean(deletingDocumentId)
+                    }
+                    onClick={() => void handleDeleteDocument(document)}
+                  >
+                    {deletingDocumentId === document.id
+                      ? 'Deleting...'
+                      : 'Delete'}
+                  </button>
+                </div>
               ))}
             </div>
           ) : (
@@ -242,8 +293,7 @@ function App() {
 
           {libraryError && (
             <p className="library-error" role="status">
-              {libraryError}
-              {' '}
+              {libraryError}{' '}
               <button type="button" onClick={() => void refreshDocuments()}>
                 Retry
               </button>
@@ -262,11 +312,11 @@ function App() {
             </div>
 
             <label className="upload-area">
-              <span className="upload-icon">↑</span>
+              <span className="upload-icon">׳’ג€ ג€˜</span>
               <strong>
                 {selectedFile ? selectedFile.name : 'Choose a PDF file'}
               </strong>
-              <span>PDF format · Maximum 5 MB</span>
+              <span>PDF format ײ²· Maximum 5 MB</span>
               <input
                 type="file"
                 accept=".pdf,application/pdf"
@@ -314,7 +364,7 @@ function App() {
               onClick={() => void handleAsk()}
             >
               {asking ? 'Finding an answer...' : 'Ask a question'}
-              {!asking && <span>→</span>}
+              {!asking && <span>׳’ג€ ג€™</span>}
             </button>
 
             <p className="hint">
@@ -334,7 +384,7 @@ function App() {
 
         <section className="answer-panel">
           <div className="answer-heading">
-            <span className="answer-icon">✦</span>
+            <span className="answer-icon">׳’ֲ¦</span>
             <div>
               <h2>Answer &amp; sources</h2>
               <p>AI-generated answers grounded in your document</p>
@@ -344,9 +394,7 @@ function App() {
           {asking ? (
             <div className="empty-state">
               <strong>Finding an answer...</strong>
-              <p>
-                The AI is searching your document and preparing a response.
-              </p>
+              <p>The AI is searching your document and preparing a response.</p>
             </div>
           ) : answerResult ? (
             <div className="answer-content">
@@ -365,9 +413,7 @@ function App() {
                         <div className="source-title">
                           <strong>Source {index + 1}</strong>
                           {score !== undefined && (
-                            <span>
-                              Similarity: {(score * 100).toFixed(1)}%
-                            </span>
+                            <span>Similarity: {(score * 100).toFixed(1)}%</span>
                           )}
                         </div>
                         <p>
@@ -386,7 +432,7 @@ function App() {
             </div>
           ) : (
             <div className="empty-state">
-              <div className="empty-icon">§</div>
+              <div className="empty-icon">ײ²§</div>
               <strong>Your answer will appear here</strong>
               <p>Upload a document and ask a question to get started.</p>
             </div>
@@ -395,7 +441,7 @@ function App() {
 
         <footer>
           <span>DocuMind</span>
-          <span>Powered by Gemini · Retrieval-Augmented Generation</span>
+          <span>Powered by Gemini ײ²· Retrieval-Augmented Generation</span>
         </footer>
       </main>
     </div>

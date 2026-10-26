@@ -81,6 +81,19 @@ export interface ListDocumentsResponse {
   documents: DocumentSummary[];
 }
 
+export async function deleteDocument(documentId: string): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/documents/${encodeURIComponent(documentId)}`,
+    {
+      method: "DELETE",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+}
+
 export async function askDocument(
   documentId: string,
   question: string,

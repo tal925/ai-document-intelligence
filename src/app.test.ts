@@ -13,6 +13,7 @@ import {
   saveDocument,
   getDocument,
   listDocuments,
+  deleteDocument,
 } from "./services/documentStore.js";
 import { extractTextFromFile } from "./services/documentTextService.js";
 
@@ -44,6 +45,7 @@ vi.mock("./services/documentStore.js", () => ({
   saveDocument: vi.fn(),
   getDocument: vi.fn(),
   listDocuments: vi.fn(),
+  deleteDocument: vi.fn(),
 }));
 
 // Replace TXT and Markdown extraction with a controllable mock.
@@ -104,6 +106,50 @@ describe("GET /api/documents", () => {
     expect(response.body).toEqual({
       success: false,
       error: "Failed to list documents",
+    });
+  });
+});
+
+describe("DELETE /api/documents/:documentId", () => {
+  it("should delete an existing document", async () => {
+    vi.mocked(deleteDocument).mockReturnValue(true);
+
+    const response = await request(app).delete("/api/documents/document-123");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      success: true,
+      message: "Document deleted successfully",
+    });
+    expect(deleteDocument).toHaveBeenCalledWith("document-123");
+  });
+
+  it("should return 404 when the document does not exist", async () => {
+    vi.mocked(deleteDocument).mockReturnValue(false);
+
+    const response = await request(app).delete(
+      "/api/documents/unknown-document-id",
+    );
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({
+      success: false,
+      error: "Document not found",
+    });
+    expect(deleteDocument).toHaveBeenCalledWith("unknown-document-id");
+  });
+
+  it("should return 500 when document deletion fails", async () => {
+    vi.mocked(deleteDocument).mockImplementation(() => {
+      throw new Error("Storage unavailable");
+    });
+
+    const response = await request(app).delete("/api/documents/document-123");
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      success: false,
+      error: "Failed to delete document",
     });
   });
 });

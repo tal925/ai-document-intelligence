@@ -12,6 +12,7 @@ import {
   saveDocument,
   getDocument,
   listDocuments,
+  deleteDocument,
 } from "./services/documentStore.js";
 import { extractTextFromFile } from "./services/documentTextService.js";
 
@@ -144,6 +145,32 @@ app.get("/api/documents", (_req, res) => {
     return res.status(500).json({
       success: false,
       error: "Failed to list documents",
+    });
+  }
+});
+
+// Delete a previously indexed document
+app.delete("/api/documents/:documentId", (req, res) => {
+  try {
+    const deleted = deleteDocument(req.params.documentId);
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        error: "Document not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Document deleted successfully",
+    });
+  } catch (error) {
+    console.error("Failed to delete document:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: "Failed to delete document",
     });
   }
 });

@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { askDocument, indexDocument, listDocuments } from "./documentApi.js";
+import {
+  askDocument,
+  deleteDocument,
+  indexDocument,
+  listDocuments,
+} from "./documentApi.js";
 
 describe("documentApi", () => {
   afterEach(() => {
@@ -52,6 +57,53 @@ describe("documentApi", () => {
       );
 
       await expect(listDocuments()).rejects.toThrow("Failed to list documents");
+    });
+
+    describe("deleteDocument", () => {
+      it("should send a DELETE request for the document", async () => {
+        const fetchMock = vi.fn().mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              success: true,
+              message: "Document deleted successfully",
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
+        );
+
+        vi.stubGlobal("fetch", fetchMock);
+
+        await expect(deleteDocument("doc-123")).resolves.toBeUndefined();
+
+        expect(fetchMock).toHaveBeenCalledWith("/api/documents/doc-123", {
+          method: "DELETE",
+        });
+      });
+
+      it("should throw the server error message when deletion fails", async () => {
+        vi.stubGlobal(
+          "fetch",
+          vi.fn().mockResolvedValue(
+            new Response(
+              JSON.stringify({
+                success: false,
+                error: "Document not found",
+              }),
+              {
+                status: 404,
+                headers: { "Content-Type": "application/json" },
+              },
+            ),
+          ),
+        );
+
+        await expect(deleteDocument("missing-doc")).rejects.toThrow(
+          "Document not found",
+        );
+      });
     });
   });
 
