@@ -106,12 +106,24 @@ function isAiQuotaError(error: unknown): boolean {
   return error.status === 429;
 }
 
-// Return a consistent response when the AI quota is exceeded.
+// Return a consistent response when the AI service is unavailable.
 function sendAiError(res: express.Response, error: unknown, message: string) {
   if (isAiQuotaError(error)) {
     return res.status(503).json({
       success: false,
       error: "AI service quota exceeded. Please try again later.",
+    });
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    error.status === 503
+  ) {
+    return res.status(503).json({
+      success: false,
+      error: "AI service is temporarily unavailable. Please try again later.",
     });
   }
 

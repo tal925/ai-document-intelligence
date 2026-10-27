@@ -804,4 +804,38 @@ describe("POST /api/documents/ask", () => {
       error: "AI service quota exceeded. Please try again later.",
     });
   });
+
+  it("should return 503 when the AI service is temporarily unavailable", async () => {
+    const embeddedChunks = [
+      {
+        index: 0,
+        content: "A document about office policies.",
+        embedding: [0.8, 0.2],
+      },
+    ];
+
+    vi.mocked(getDocument).mockReturnValue(embeddedChunks);
+    vi.mocked(semanticSearchPrepared).mockResolvedValue([
+      {
+        index: 0,
+        content: "A document about office policies.",
+        score: 0.9,
+      },
+    ]);
+    vi.mocked(answerQuestion).mockRejectedValue({
+      status: 503,
+      message: "Service unavailable",
+    });
+
+    const response = await request(app).post("/api/documents/ask").send({
+      documentId: "test-document-id",
+      question: "What does the document say?",
+    });
+
+    expect(response.status).toBe(503);
+    expect(response.body).toEqual({
+      success: false,
+      error: "AI service is temporarily unavailable. Please try again later.",
+    });
+  });
 });

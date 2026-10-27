@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from 'react'
 import {
   askDocument,
@@ -34,9 +35,8 @@ function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [documentId, setDocumentId] = useState('')
   const [indexedMessage, setIndexedMessage] = useState('')
-  const [answerResult, setAnswerResult] = useState<AskDocumentResponse | null>(
-    null,
-  )
+  const [answerResult, setAnswerResult] =
+    useState<AskDocumentResponse | null>(null)
   const [uploading, setUploading] = useState(false)
   const [asking, setAsking] = useState(false)
   const [error, setError] = useState('')
@@ -56,7 +56,9 @@ function App() {
       setDocuments(result.documents)
     } catch (err) {
       setLibraryError(
-        err instanceof Error ? err.message : 'Failed to load saved documents.',
+        err instanceof Error
+          ? err.message
+          : 'Failed to load saved documents.',
       )
     }
   }
@@ -200,7 +202,9 @@ function App() {
       const result = await askDocument(documentId, question.trim())
       setAnswerResult(result)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to get an answer.')
+      setError(
+        err instanceof Error ? err.message : 'Failed to get an answer.',
+      )
     } finally {
       askingRef.current = false
       setAsking(false)
@@ -211,12 +215,14 @@ function App() {
     <div className="app">
       <header className="topbar">
         <a className="brand" href="/">
-          <span className="brand-icon">D</span>
+          <span className="brand-icon" aria-hidden="true">
+            D
+          </span>
           <span>DocuMind</span>
         </a>
 
         <span className="status">
-          <span className="status-dot" />
+          <span className="status-dot" aria-hidden="true" />
           AI Document Intelligence
         </span>
       </header>
@@ -230,8 +236,8 @@ function App() {
             <span>Ask better questions.</span>
           </h1>
           <p className="subtitle">
-            Upload a document, explore its content, and get answers grounded in
-            the information that matters.
+            Upload a document, explore its content, and get answers grounded
+            in the information that matters.
           </p>
         </section>
 
@@ -261,11 +267,15 @@ function App() {
                     aria-pressed={documentId === document.id}
                     onClick={() => handleSelectDocument(document)}
                   >
-                    <span className="document-name">{document.fileName}</span>
+                    <span className="document-name">
+                      {document.fileName}
+                    </span>
                     <span className="document-date">
                       {Number.isNaN(Date.parse(document.createdAt))
                         ? 'Date unavailable'
-                        : new Date(document.createdAt).toLocaleDateString()}
+                        : new Date(
+                            document.createdAt,
+                          ).toLocaleDateString()}
                     </span>
                   </button>
 
@@ -312,11 +322,13 @@ function App() {
             </div>
 
             <label className="upload-area">
-              <span className="upload-icon">׳’ג€ ג€˜</span>
+              <span className="upload-icon" aria-hidden="true">
+                ↑
+              </span>
               <strong>
                 {selectedFile ? selectedFile.name : 'Choose a PDF file'}
               </strong>
-              <span>PDF format ײ²· Maximum 5 MB</span>
+              <span>PDF format · Maximum 5 MB</span>
               <input
                 type="file"
                 accept=".pdf,application/pdf"
@@ -364,7 +376,9 @@ function App() {
               onClick={() => void handleAsk()}
             >
               {asking ? 'Finding an answer...' : 'Ask a question'}
-              {!asking && <span>׳’ג€ ג€™</span>}
+              {!asking && (
+                <span aria-hidden="true">↗</span>
+              )}
             </button>
 
             <p className="hint">
@@ -384,7 +398,9 @@ function App() {
 
         <section className="answer-panel">
           <div className="answer-heading">
-            <span className="answer-icon">׳’ֲ¦</span>
+            <span className="answer-icon" aria-hidden="true">
+              ✦
+            </span>
             <div>
               <h2>Answer &amp; sources</h2>
               <p>AI-generated answers grounded in your document</p>
@@ -392,9 +408,11 @@ function App() {
           </div>
 
           {asking ? (
-            <div className="empty-state">
+            <div className="empty-state" role="status">
               <strong>Finding an answer...</strong>
-              <p>The AI is searching your document and preparing a response.</p>
+              <p>
+                The AI is searching your document and preparing a response.
+              </p>
             </div>
           ) : answerResult ? (
             <div className="answer-content">
@@ -413,7 +431,9 @@ function App() {
                         <div className="source-title">
                           <strong>Source {index + 1}</strong>
                           {score !== undefined && (
-                            <span>Similarity: {(score * 100).toFixed(1)}%</span>
+                            <span>
+                              Similarity: {(score * 100).toFixed(1)}%
+                            </span>
                           )}
                         </div>
                         <p>
@@ -432,7 +452,9 @@ function App() {
             </div>
           ) : (
             <div className="empty-state">
-              <div className="empty-icon">ײ²§</div>
+              <div className="empty-icon" aria-hidden="true">
+                ◇
+              </div>
               <strong>Your answer will appear here</strong>
               <p>Upload a document and ask a question to get started.</p>
             </div>
@@ -441,7 +463,9 @@ function App() {
 
         <footer>
           <span>DocuMind</span>
-          <span>Powered by Gemini ײ²· Retrieval-Augmented Generation</span>
+          <span>
+            Powered by Gemini · Retrieval-Augmented Generation
+          </span>
         </footer>
       </main>
     </div>
