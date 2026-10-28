@@ -36,8 +36,10 @@ describe("App", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows an error when a non-PDF file is selected", () => {
+  it("shows an error when a non-PDF file is selected", async () => {
     render(<App />);
+
+   await screen.findByText(/no saved documents yet/i);
 
     const fileInput = screen.getByLabelText(/choose a pdf file/i);
     const file = new File(["hello"], "notes.txt", {
@@ -54,8 +56,10 @@ describe("App", () => {
     expect(documentApi.indexDocument).not.toHaveBeenCalled();
   });
 
-  it("shows an error when the PDF file exceeds 5 MB", () => {
-    render(<App />);
+  it("shows an error when the PDF file exceeds 5 MB", async () => {
+   render(<App />);
+
+   await screen.findByText(/no saved documents yet/i);
 
     const file = new File(
       [new Uint8Array(5 * 1024 * 1024 + 1)],
