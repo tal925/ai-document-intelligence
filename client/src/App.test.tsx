@@ -36,14 +36,14 @@ describe("App", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows an error when a non-PDF file is selected", async () => {
+  it("shows an error when an unsupported file is selected", async () => {
     render(<App />);
 
-   await screen.findByText(/no saved documents yet/i);
+    await screen.findByText(/no saved documents yet/i);
 
-    const fileInput = screen.getByLabelText(/choose a pdf file/i);
-    const file = new File(["hello"], "notes.txt", {
-      type: "text/plain",
+    const fileInput = screen.getByLabelText(/choose a document/i);
+    const file = new File(["hello"], "spreadsheet.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
 
     fireEvent.change(fileInput, {
@@ -51,15 +51,65 @@ describe("App", () => {
     });
 
     expect(screen.getByRole("alert").textContent).toContain(
-      "Please select a PDF file.",
+      "Please select a PDF, TXT, Markdown, or DOCX file.",
     );
     expect(documentApi.indexDocument).not.toHaveBeenCalled();
   });
 
-  it("shows an error when the PDF file exceeds 5 MB", async () => {
-   render(<App />);
+  it.each([
+    {
+      fileName: "notes.txt",
+      contentType: "text/plain",
+      content: "Plain text document",
+    },
+    {
+      fileName: "notes.md",
+      contentType: "text/markdown",
+      content: "# Markdown document",
+    },
+    {
+      fileName: "notes.docx",
+      contentType:
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      content: "DOCX document",
+    },
+  ])(
+    "indexes the supported file $fileName",
+    async ({ fileName, contentType, content }) => {
+      vi.mocked(documentApi.indexDocument).mockResolvedValue({
+        success: true,
+        documentId: "document-123",
+        message: "Document indexed successfully",
+        chunksCount: 2,
+      });
 
-   await screen.findByText(/no saved documents yet/i);
+      render(<App />);
+
+      await screen.findByText(/no saved documents yet/i);
+
+      const fileInput = screen.getByLabelText(/choose a document/i);
+      const file = new File([content], fileName, {
+        type: contentType,
+      });
+
+      fireEvent.change(fileInput, {
+        target: { files: [file] },
+      });
+
+      expect(
+        await screen.findByText(
+          "Document indexed successfully (2 chunks).",
+        ),
+      ).toBeInTheDocument();
+
+      expect(documentApi.indexDocument).toHaveBeenCalledWith(file);
+    },
+  );
+
+  it("shows an error when the file exceeds 5 MB", async () => {
+    render(<App />);
+
+    await screen.findByText(/no saved documents yet/i);
 
     const file = new File(
       [new Uint8Array(5 * 1024 * 1024 + 1)],
@@ -67,7 +117,7 @@ describe("App", () => {
       { type: "application/pdf" },
     );
 
-    fireEvent.change(screen.getByLabelText(/choose a pdf file/i), {
+    fireEvent.change(screen.getByLabelText(/choose a document/i), {
       target: { files: [file] },
     });
 
@@ -104,13 +154,13 @@ describe("App", () => {
       type: "application/pdf",
     });
 
-    fireEvent.change(screen.getByLabelText(/choose a pdf file/i), {
+    fireEvent.change(screen.getByLabelText(/choose a document/i), {
       target: { files: [file] },
     });
 
     expect(
       await screen.findByText("Document indexed successfully (2 chunks)."),
-    ).toBeTruthy();
+    ).toBeInTheDocument();
 
     expect(documentApi.indexDocument).toHaveBeenCalledWith(file);
 
@@ -124,13 +174,13 @@ describe("App", () => {
 
     expect(
       await screen.findByText("The document explains task management."),
-    ).toBeTruthy();
+    ).toBeInTheDocument();
 
     expect(
       screen.getByText("The system creates and assigns tasks."),
-    ).toBeTruthy();
+    ).toBeInTheDocument();
 
-    expect(screen.getByText("Similarity: 85.0%")).toBeTruthy();
+    expect(screen.getByText("Similarity: 85.0%")).toBeInTheDocument();
 
     expect(documentApi.askDocument).toHaveBeenCalledWith(
       "document-123",
@@ -138,7 +188,7 @@ describe("App", () => {
     );
   });
 
-  it("shows an error when PDF indexing fails", async () => {
+  it("shows an error when document indexing fails", async () => {
     vi.mocked(documentApi.indexDocument).mockRejectedValue(
       new Error("Failed to upload document"),
     );
@@ -149,7 +199,7 @@ describe("App", () => {
       type: "application/pdf",
     });
 
-    fireEvent.change(screen.getByLabelText(/choose a pdf file/i), {
+    fireEvent.change(screen.getByLabelText(/choose a document/i), {
       target: { files: [file] },
     });
 
@@ -176,13 +226,13 @@ describe("App", () => {
       type: "application/pdf",
     });
 
-    fireEvent.change(screen.getByLabelText(/choose a pdf file/i), {
+    fireEvent.change(screen.getByLabelText(/choose a document/i), {
       target: { files: [file] },
     });
 
     expect(
       await screen.findByText("Document indexed successfully (2 chunks)."),
-    ).toBeTruthy();
+    ).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Your question"), {
       target: { value: "What is the main point?" },
@@ -227,7 +277,7 @@ describe("App", () => {
 
     render(<App />);
 
-    const fileInput = screen.getByLabelText(/choose a pdf file/i);
+    const fileInput = screen.getByLabelText(/choose a document/i);
     const file = new File(["PDF test content"], "document.pdf", {
       type: "application/pdf",
     });
@@ -238,7 +288,7 @@ describe("App", () => {
 
     expect(
       await screen.findByText("Document indexed successfully (2 chunks)."),
-    ).toBeTruthy();
+    ).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Your question"), {
       target: { value: "What is the main point?" },
@@ -260,7 +310,7 @@ describe("App", () => {
 
     expect(
       await screen.findByText("The document explains task management."),
-    ).toBeTruthy();
+    ).toBeInTheDocument();
 
     expect(fileInput).toBeEnabled();
   });
@@ -279,13 +329,13 @@ describe("App", () => {
       type: "application/pdf",
     });
 
-    fireEvent.change(screen.getByLabelText(/choose a pdf file/i), {
+    fireEvent.change(screen.getByLabelText(/choose a document/i), {
       target: { files: [file] },
     });
 
     expect(
       await screen.findByText("Document indexed successfully (2 chunks)."),
-    ).toBeTruthy();
+    ).toBeInTheDocument();
 
     const questionInput = screen.getByLabelText("Your question");
     const askButton = screen.getByRole("button", {
@@ -329,13 +379,13 @@ describe("App", () => {
       type: "application/pdf",
     });
 
-    fireEvent.change(screen.getByLabelText(/choose a pdf file/i), {
+    fireEvent.change(screen.getByLabelText(/choose a document/i), {
       target: { files: [file] },
     });
 
     expect(
       await screen.findByText("Document indexed successfully (2 chunks)."),
-    ).toBeTruthy();
+    ).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Your question"), {
       target: { value: "What is the main point?" },
@@ -360,7 +410,7 @@ describe("App", () => {
 
     expect(
       await screen.findByText("The document explains task management."),
-    ).toBeTruthy();
+    ).toBeInTheDocument();
   });
 
   it("displays saved documents in the library", async () => {
@@ -379,13 +429,13 @@ describe("App", () => {
 
     expect(
       await screen.findByText("company-policy.pdf"),
-    ).toBeTruthy();
+    ).toBeInTheDocument();
 
     expect(
       screen.getByText(
         new Date("2026-10-20T10:00:00.000Z").toLocaleDateString(),
       ),
-    ).toBeTruthy();
+    ).toBeInTheDocument();
   });
 
   it("selects a saved document and asks a question without uploading it", async () => {
@@ -423,7 +473,7 @@ describe("App", () => {
 
     expect(
       await screen.findByText("The policy describes company procedures."),
-    ).toBeTruthy();
+    ).toBeInTheDocument();
 
     expect(documentApi.askDocument).toHaveBeenCalledWith(
       "saved-doc-123",
@@ -445,7 +495,7 @@ describe("App", () => {
 
     expect(
       await screen.findByText(/could not load saved documents/i),
-    ).toBeTruthy();
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /retry/i }));
 

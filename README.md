@@ -1,6 +1,6 @@
 # DocuMind — AI Document Intelligence
 
-A full-stack document intelligence application built with TypeScript, Express, React, and Google Gemini. DocuMind extracts text from supported documents, generates AI-powered summaries through its API, performs semantic search, and answers questions grounded in relevant document passages.
+A full-stack document intelligence application built with TypeScript, Express, React, and Google Gemini. DocuMind extracts text from supported documents, generates AI summaries through its API, performs semantic search, and answers questions grounded in relevant document passages.
 
 ## Features
 
@@ -15,14 +15,14 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - Retrieval-Augmented Generation (RAG) for document-grounded question answering.
 - Relevant source passages and similarity scores in search and Q&A responses.
 - Persistent local JSON storage for indexed documents.
-- Document listing and deletion through the API.
+- Document deletion from persistent storage.
 - Upload size limit of 5 MB and input validation.
 - API error handling and automated tests.
 
 **Frontend**
 
 - React and TypeScript user interface.
-- PDF upload and indexing.
+- PDF, TXT, Markdown, and DOCX upload and indexing.
 - Saved document library with document selection and reuse for follow-up questions.
 - Ability to delete saved documents from the library.
 - Question submission for indexed documents.
@@ -33,8 +33,8 @@ A full-stack document intelligence application built with TypeScript, Express, R
 
 ### Planned
 
-- Frontend support for TXT, Markdown, and DOCX uploads.
-- Dedicated UI for document summarization and semantic search.
+- A dedicated UI for document summarization and semantic search.
+- Spreadsheet file support.
 - Database-backed document storage.
 - More extensive retrieval-quality evaluation and end-to-end testing.
 - OCR support for scanned documents.
@@ -54,8 +54,8 @@ A full-stack document intelligence application built with TypeScript, Express, R
 
 ## Architecture
 
-1. **Upload:** The frontend currently sends PDF files to the backend for indexing.
-2. **Extraction:** The backend extracts text from supported PDF, TXT, Markdown, and DOCX files.
+1. **Upload:** The frontend accepts PDF, TXT, Markdown, and DOCX files and sends them to the backend for indexing.
+2. **Extraction:** The backend extracts text from the supported document format.
 3. **Chunking and embeddings:** Text is split into chunks, and embeddings are generated.
 4. **Storage:** Indexed chunks and embeddings are saved in a local JSON file. Document metadata is exposed through the document-list API for the frontend library.
 5. **Retrieval:** A user question is compared with stored document chunks using semantic search.
@@ -82,8 +82,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - The search endpoint accepts a `query` and either a file or an existing `documentId`.
 - The ask endpoint accepts JSON containing `documentId` and `question`.
 - The maximum upload size is 5 MB.
-- The backend API supports PDF, TXT, Markdown, and DOCX files.
-- The frontend currently accepts PDF files only.
+- Both the frontend and backend API support PDF, TXT, Markdown, and DOCX files, subject to the upload size limit.
 - Deleting a document removes its saved content from the local document store.
 
 ## Getting Started
@@ -94,7 +93,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - npm
 - A Google Gemini API key
 
-### 1. Install Dependencies
+### 1. Install dependencies
 
 From the repository root:
 
@@ -103,7 +102,7 @@ npm install
 npm --prefix client install
 ```
 
-### 2. Configure Environment Variables
+### 2. Configure environment variables
 
 Create a `.env` file in the repository root:
 
@@ -113,7 +112,7 @@ GEMINI_API_KEY=your_gemini_api_key
 
 Do not commit `.env` or expose your API key.
 
-### 3. Start the Backend
+### 3. Start the backend
 
 From the repository root:
 
@@ -127,7 +126,7 @@ Check its status at:
 
 `http://localhost:3000/api/health`
 
-### 4. Start the Frontend
+### 4. Start the frontend
 
 Open a second terminal from the repository root:
 
@@ -137,14 +136,14 @@ npm --prefix client run dev
 
 Open the local URL printed by Vite in the terminal.
 
-### 5. Run Backend Tests
+### 5. Run backend tests
 
 ```bash
 npm test
 npx tsc --noEmit
 ```
 
-### 6. Run Frontend Tests and Build
+### 6. Run frontend tests and build
 
 ```bash
 npm --prefix client test
@@ -156,14 +155,14 @@ npm --prefix client run build
 - Indexed documents are persisted in `data/documents.json` by default.
 - Set `DOCUMENT_STORE_PATH` to use a different storage-file path.
 - Local JSON storage is intended for the current project scope and is not a substitute for a production database.
-- The frontend currently supports PDF uploads, while the backend API supports PDF, TXT, Markdown, and DOCX.
+- Both the frontend and backend support PDF, TXT, Markdown, and DOCX uploads, subject to the 5 MB upload limit.
 - Document-grounded answers depend on retrieval quality and the content available in the indexed document.
 - Scanned PDFs requiring OCR are not currently supported.
 - The frontend does not yet expose every backend capability; summarization and semantic search are available through the API.
 
 ## Project Status
 
-DocuMind is a working full-stack prototype with document indexing, semantic retrieval, grounded question answering, and document management. Features listed under **Planned** are not represented as implemented functionality.
+This repository contains a working full-stack prototype with document indexing, semantic retrieval, grounded question answering, and document management. Features listed under **Planned** are not represented as implemented functionality.
 
 ## License
 

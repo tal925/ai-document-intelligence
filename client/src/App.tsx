@@ -13,6 +13,20 @@ import type {
 } from './services/documentApi.js'
 import './App.css'
 
+const SUPPORTED_EXTENSIONS = ['.pdf', '.txt', '.md', '.docx']
+const MAX_FILE_SIZE = 5 * 1024 * 1024
+
+const ACCEPTED_FILE_TYPES = [
+  '.pdf',
+  '.txt',
+  '.md',
+  '.docx',
+  'application/pdf',
+  'text/plain',
+  'text/markdown',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+].join(',')
+
 function getSourceText(source: DocumentSource): string {
   for (const key of ['content', 'text', 'chunk', 'snippet']) {
     const value = source[key]
@@ -28,6 +42,14 @@ function getSourceText(source: DocumentSource): string {
 function getSourceScore(source: DocumentSource): number | undefined {
   const value = source.score ?? source.similarity
   return typeof value === 'number' ? value : undefined
+}
+
+function isSupportedFile(file: File): boolean {
+  const fileName = file.name.toLowerCase()
+
+  return SUPPORTED_EXTENSIONS.some((extension) =>
+    fileName.endsWith(extension),
+  )
 }
 
 function App() {
@@ -153,13 +175,15 @@ function App() {
     setDocumentId('')
     setIndexedMessage('')
 
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
+    if (!isSupportedFile(file)) {
       setSelectedFile(null)
-      setError('Please select a PDF file.')
+      setError(
+        'Please select a PDF, TXT, Markdown, or DOCX file.',
+      )
       return
     }
 
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > MAX_FILE_SIZE) {
       setSelectedFile(null)
       setError('The file is too large. Maximum file size is 5 MB.')
       return
@@ -297,7 +321,7 @@ function App() {
             </div>
           ) : (
             <p className="hint">
-              No saved documents yet. Upload a PDF to get started.
+              No saved documents yet. Upload a document to get started.
             </p>
           )}
 
@@ -317,7 +341,7 @@ function App() {
               <span className="step-number">01</span>
               <div>
                 <h2>Upload a document</h2>
-                <p>Start with a PDF document</p>
+                <p>Upload a document to get started</p>
               </div>
             </div>
 
@@ -326,12 +350,12 @@ function App() {
                 ↑
               </span>
               <strong>
-                {selectedFile ? selectedFile.name : 'Choose a PDF file'}
+                {selectedFile ? selectedFile.name : 'Choose a document'}
               </strong>
-              <span>PDF format · Maximum 5 MB</span>
+              <span>PDF, TXT, Markdown, or DOCX · Maximum 5 MB</span>
               <input
                 type="file"
-                accept=".pdf,application/pdf"
+                accept={ACCEPTED_FILE_TYPES}
                 disabled={uploading || asking}
                 onChange={(event) => {
                   void handleFileChange(event.target.files?.[0])
@@ -376,9 +400,7 @@ function App() {
               onClick={() => void handleAsk()}
             >
               {asking ? 'Finding an answer...' : 'Ask a question'}
-              {!asking && (
-                <span aria-hidden="true">↗</span>
-              )}
+              {!asking && <span aria-hidden="true">↗</span>}
             </button>
 
             <p className="hint">
@@ -463,9 +485,7 @@ function App() {
 
         <footer>
           <span>DocuMind</span>
-          <span>
-            Powered by Gemini · Retrieval-Augmented Generation
-          </span>
+          <span>Powered by Gemini · Retrieval-Augmented Generation</span>
         </footer>
       </main>
     </div>
