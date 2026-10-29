@@ -85,6 +85,19 @@ async function extractDocumentText(file: Express.Multer.File): Promise<string> {
     return extractTextFromFile(file.buffer, extension);
   }
 
+  if (extension === "docx") {
+    const allowedMimeTypes = [
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/octet-stream",
+    ];
+
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new Error("Unsupported file type");
+    }
+
+    return extractTextFromFile(file.buffer, "docx");
+  }
+
   throw new Error("Unsupported file type");
 }
 

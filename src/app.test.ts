@@ -48,7 +48,7 @@ vi.mock("./services/documentStore.js", () => ({
   deleteDocument: vi.fn(),
 }));
 
-// Replace TXT and Markdown extraction with a controllable mock.
+// Replace text extraction with a controllable mock.
 vi.mock("./services/documentTextService.js", () => ({
   extractTextFromFile: vi.fn(),
 }));
@@ -251,12 +251,14 @@ describe("POST /api/documents/upload", () => {
   });
 
   it("should summarize a TXT file successfully", async () => {
-    vi.mocked(extractTextFromFile).mockReturnValue("Text file content");
+    vi.mocked(extractTextFromFile).mockResolvedValue("Text file content");
     vi.mocked(summarizeDocument).mockResolvedValue("TXT summary");
+
+    const fileBuffer = Buffer.from("Text file content");
 
     const response = await request(app)
       .post("/api/documents/upload")
-      .attach("file", Buffer.from("Text file content"), {
+      .attach("file", fileBuffer, {
         filename: "document.txt",
         contentType: "text/plain",
       });
@@ -267,22 +269,21 @@ describe("POST /api/documents/upload", () => {
       summary: "TXT summary",
     });
 
-    expect(extractTextFromFile).toHaveBeenCalledWith(
-      Buffer.from("Text file content"),
-      "txt",
-    );
+    expect(extractTextFromFile).toHaveBeenCalledWith(fileBuffer, "txt");
     expect(summarizeDocument).toHaveBeenCalledWith("Text file content");
   });
 
   it("should summarize a Markdown file successfully", async () => {
-    vi.mocked(extractTextFromFile).mockReturnValue(
+    vi.mocked(extractTextFromFile).mockResolvedValue(
       "# Document\nMarkdown content",
     );
     vi.mocked(summarizeDocument).mockResolvedValue("Markdown summary");
 
+    const fileBuffer = Buffer.from("# Document\nMarkdown content");
+
     const response = await request(app)
       .post("/api/documents/upload")
-      .attach("file", Buffer.from("# Document\nMarkdown content"), {
+      .attach("file", fileBuffer, {
         filename: "document.md",
         contentType: "text/markdown",
       });
@@ -293,16 +294,37 @@ describe("POST /api/documents/upload", () => {
       summary: "Markdown summary",
     });
 
-    expect(extractTextFromFile).toHaveBeenCalledWith(
-      Buffer.from("# Document\nMarkdown content"),
-      "md",
-    );
+    expect(extractTextFromFile).toHaveBeenCalledWith(fileBuffer, "md");
+  });
+
+  it("should summarize a DOCX file successfully", async () => {
+    vi.mocked(extractTextFromFile).mockResolvedValue("DOCX document content");
+    vi.mocked(summarizeDocument).mockResolvedValue("DOCX summary");
+
+    const fileBuffer = Buffer.from("fake DOCX content");
+
+    const response = await request(app)
+      .post("/api/documents/upload")
+      .attach("file", fileBuffer, {
+        filename: "document.docx",
+        contentType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      success: true,
+      summary: "DOCX summary",
+    });
+
+    expect(extractTextFromFile).toHaveBeenCalledWith(fileBuffer, "docx");
+    expect(summarizeDocument).toHaveBeenCalledWith("DOCX document content");
   });
 
   it("should return 400 when a text file contains no extractable text", async () => {
-    vi.mocked(extractTextFromFile).mockImplementation(() => {
-      throw new Error("No extractable text found in file");
-    });
+    vi.mocked(extractTextFromFile).mockRejectedValue(
+      new Error("No extractable text found in file"),
+    );
 
     const response = await request(app)
       .post("/api/documents/upload")
@@ -538,7 +560,7 @@ describe("POST /api/documents/index", () => {
       },
     ];
 
-    vi.mocked(extractTextFromFile).mockReturnValue("Text document content");
+    vi.mocked(extractTextFromFile).mockResolvedValue("Text document content");
     vi.mocked(prepareChunks).mockResolvedValue(embeddedChunks);
     vi.mocked(saveDocument).mockReturnValue("txt-document-id");
 
@@ -553,6 +575,47 @@ describe("POST /api/documents/index", () => {
     expect(response.body.documentId).toBe("txt-document-id");
     expect(response.body.chunksCount).toBe(1);
     expect(saveDocument).toHaveBeenCalledWith(embeddedChunks, "document.txt");
+  });
+
+  it("should index a DOCX file successfully", async () => {
+    const embeddedChunks = [
+      {
+        index: 0,
+        content: "DOCX document content",
+        embedding: [0.5, 0.5],
+      },
+    ];
+
+    const fileBuffer = Buffer.from("fake DOCX content");
+
+    vi.mocked(extractTextFromFile).mockResolvedValue("DOCX document content");
+    vi.mocked(prepareChunks).mockResolvedValue(embeddedChunks);
+    vi.mocked(saveDocument).mockReturnValue("docx-document-id");
+
+    const response = await request(app)
+      .post("/api/documents/index")
+      .attach("file", fileBuffer, {
+        filename: "document.docx",
+        contentType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body).toEqual({
+      success: true,
+      documentId: "docx-document-id",
+      message: "Document indexed successfully",
+      chunksCount: 1,
+    });
+
+    expect(extractTextFromFile).toHaveBeenCalledWith(fileBuffer, "docx");
+    expect(prepareChunks).toHaveBeenCalledWith([
+      {
+        index: 0,
+        content: "DOCX document content",
+      },
+    ]);
+    expect(saveDocument).toHaveBeenCalledWith(embeddedChunks, "document.docx");
   });
 
   it("should return 400 when the uploaded file type is unsupported", async () => {

@@ -1,18 +1,23 @@
-export type SupportedTextFileType = "txt" | "md";
+import mammoth from "mammoth";
 
-// Extract text from a supported text file.
-export function extractTextFromFile(
+export type SupportedTextFileType = "txt" | "md" | "docx";
+
+// Extract text from a supported document file.
+export async function extractTextFromFile(
   buffer: Buffer,
   fileType: SupportedTextFileType,
-): string {
-  const text = buffer.toString("utf-8").trim();
+): Promise<string> {
+  let text: string;
+
+  if (fileType === "docx") {
+    const result = await mammoth.extractRawText({ buffer });
+    text = result.value.trim();
+  } else {
+    text = buffer.toString("utf-8").trim();
+  }
 
   if (!text) {
     throw new Error("No extractable text found in file");
-  }
-
-  if (fileType !== "txt" && fileType !== "md") {
-    throw new Error("Unsupported file type");
   }
 
   return text;
