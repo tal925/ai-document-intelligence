@@ -772,6 +772,51 @@ describe("POST /api/documents/ask", () => {
     );
   });
 
+  it("should preserve a Hebrew question when answering an indexed document", async () => {
+    const embeddedChunks = [
+      {
+        index: 0,
+        content: "Employees can work from home two days a week.",
+        embedding: [0.8, 0.2],
+      },
+    ];
+
+    const searchResults = [
+      {
+        index: 0,
+        content: "Employees can work from home two days a week.",
+        score: 0.95,
+      },
+    ];
+
+    const question = "כמה ימים בשבוע העובדים יכולים לעבוד מהבית?";
+    const answer = "העובדים יכולים לעבוד מהבית יומיים בשבוע.";
+
+    vi.mocked(getDocument).mockReturnValue(embeddedChunks);
+    vi.mocked(semanticSearchPrepared).mockResolvedValue(searchResults);
+    vi.mocked(answerQuestion).mockResolvedValue(answer);
+
+    const response = await request(app).post("/api/documents/ask").send({
+      documentId: "test-document-id",
+      question,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      success: true,
+      documentId: "test-document-id",
+      question,
+      answer,
+      sources: searchResults,
+    });
+
+    expect(semanticSearchPrepared).toHaveBeenCalledWith(
+      question,
+      embeddedChunks,
+    );
+    expect(answerQuestion).toHaveBeenCalledWith(question, searchResults);
+  });
+
   it("should return a fallback answer when no relevant chunks are found", async () => {
     const embeddedChunks = [
       {

@@ -122,6 +122,41 @@ describe("answerQuestion", () => {
     });
   });
 
+  it("should include Hebrew instructions, the question, and source context in the prompt", async () => {
+    generateContentMock.mockResolvedValue({
+      text: "המערכת מאפשרת ניהול משימות.",
+    });
+
+    const question = "מה המערכת מאפשרת?";
+    const chunks = [
+      {
+        index: 0,
+        content: "The system allows users to manage tasks.",
+        score: 0.9,
+      },
+    ];
+
+    await answerQuestion(question, chunks);
+
+    const request = generateContentMock.mock.calls.at(0)?.[0];
+
+    expect(request).toBeDefined();
+
+    const prompt = request?.contents;
+
+    expect(typeof prompt).toBe("string");
+
+    if (typeof prompt !== "string") {
+      throw new Error("Expected prompt to be a string");
+    }
+
+    expect(prompt).toContain("ענה על השאלה בעברית");
+    expect(prompt).toContain("רק על סמך המידע");
+    expect(prompt).toContain("The system allows users to manage tasks.");
+    expect(prompt).toContain(question);
+    expect(prompt).toContain("אין מספיק מידע במסמך כדי לענות על השאלה.");
+  });
+
   it("should reject an empty answer", async () => {
     generateContentMock.mockResolvedValue({ text: "" });
 
