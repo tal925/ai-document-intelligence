@@ -13,11 +13,10 @@ describe("extractTextFromFile", () => {
   });
 
   it("should extract Hebrew text from a Markdown file", async () => {
-    const buffer = Buffer.from("# כותרת\nתוכן המסמך", "utf-8");
+    const content = "# כותרת\nתוכן בעברית";
+    const buffer = Buffer.from(content, "utf-8");
 
-    await expect(extractTextFromFile(buffer, "md")).resolves.toBe(
-      "# כותרת\nתוכן המסמך",
-    );
+    await expect(extractTextFromFile(buffer, "md")).resolves.toBe(content);
   });
 
   it("should reject an empty file", async () => {
