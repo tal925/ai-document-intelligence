@@ -13,6 +13,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - Text chunking and embedding generation.
 - Semantic search over document content.
 - Retrieval-Augmented Generation (RAG) for document-grounded question answering.
+- Prompt-injection mitigation through instructions that treat document content as untrusted data rather than executable instructions.
 - Relevant source passages and similarity scores in search and Q&A responses.
 - Persistent local JSON storage for indexed documents.
 - Document deletion from persistent storage.
@@ -104,11 +105,7 @@ npm --prefix client install
 
 ### 2. Configure environment variables
 
-Create a `.env` file in the repository root:
-
-```env
-GEMINI_API_KEY=your_gemini_api_key
-```
+Ensure a `.env` file exists in the repository root and contains your `GEMINI_API_KEY`.
 
 Do not commit `.env` or expose your API key.
 
