@@ -1,20 +1,39 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getTextMock, destroyMock, PDFParseMock } = vi.hoisted(() => ({
-  getTextMock: vi.fn(),
-  destroyMock: vi.fn(),
-  PDFParseMock: vi.fn(),
-}));
+const {
+  getTextMock,
+  destroyMock,
+  PDFParseMock,
+  InvalidPDFException,
+  FormatError,
+  PasswordException,
+} = vi.hoisted(() => {
+  class InvalidPDFException extends Error {}
+  class FormatError extends Error {}
+  class PasswordException extends Error {}
+
+  return {
+    getTextMock: vi.fn(),
+    destroyMock: vi.fn(),
+    PDFParseMock: vi.fn(),
+    InvalidPDFException,
+    FormatError,
+    PasswordException,
+  };
+});
 
 vi.mock("pdf-parse", () => ({
   PDFParse: class {
     getText = getTextMock;
     destroy = destroyMock;
 
-    constructor(_options: { data: Buffer }) {
-      PDFParseMock(_options);
+    constructor(options: { data: Buffer }) {
+      PDFParseMock(options);
     }
   },
+  InvalidPDFException,
+  FormatError,
+  PasswordException,
 }));
 
 import { extractTextFromPdf } from "./pdfService.js";
@@ -55,12 +74,30 @@ describe("extractTextFromPdf", () => {
     expect(destroyMock).toHaveBeenCalledOnce();
   });
 
-  it("should propagate a text extraction error", async () => {
-    getTextMock.mockRejectedValue(new Error("PDF extraction failed"));
+  it.each([
+    ["invalid PDF", InvalidPDFException],
+    ["malformed PDF format", FormatError],
+    ["password-protected PDF", PasswordException],
+  ])(
+    "should classify %s as an invalid PDF",
+    async (_description, ErrorType) => {
+      getTextMock.mockRejectedValue(new ErrorType("PDF parsing error"));
+
+      await expect(
+        extractTextFromPdf(Buffer.from("%PDF-1.7\nfake PDF")),
+      ).rejects.toThrow("Invalid PDF file");
+
+      expect(destroyMock).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("should propagate an unexpected text extraction error", async () => {
+    const unexpectedError = new Error("Unexpected parser failure");
+    getTextMock.mockRejectedValue(unexpectedError);
 
     await expect(
       extractTextFromPdf(Buffer.from("%PDF-1.7\nfake PDF")),
-    ).rejects.toThrow("PDF extraction failed");
+    ).rejects.toBe(unexpectedError);
 
     expect(destroyMock).toHaveBeenCalledOnce();
   });

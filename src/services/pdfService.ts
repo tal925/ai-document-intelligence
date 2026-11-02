@@ -1,4 +1,9 @@
-import { PDFParse } from "pdf-parse";
+import {
+  PDFParse,
+  InvalidPDFException,
+  FormatError,
+  PasswordException,
+} from "pdf-parse";
 
 // Extract text from a PDF buffer
 export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
@@ -22,6 +27,17 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
     }
 
     return text;
+  } catch (error) {
+    if (
+      error instanceof InvalidPDFException ||
+      error instanceof FormatError ||
+      error instanceof PasswordException
+    ) {
+      throw new Error("Invalid PDF file", { cause: error });
+    }
+
+    // Preserve unexpected errors so they can be handled as server errors.
+    throw error;
   } finally {
     // Release parser resources
     await parser.destroy();

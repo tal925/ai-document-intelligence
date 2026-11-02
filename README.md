@@ -18,7 +18,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - Persistent local JSON storage for indexed documents.
 - Document deletion from persistent storage.
 - Upload size limit of 5 MB and input validation.
-- Validation of uploaded file content, including rejection of invalid PDF signatures, malformed DOCX files, invalid UTF-8 text, and empty documents.
+- Validation of uploaded file content, including invalid PDF signatures, malformed or password-protected PDFs, malformed DOCX files, invalid UTF-8 text, and empty documents.
 - API error handling and automated tests.
 
 **Frontend**
