@@ -8,7 +8,7 @@ export async function summarizeDocument(content: string): Promise<string> {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: "gemini-3.5-flash-lite",
         contents: `Summarize this document in Hebrew using exactly 2 bullet points.
 
 Document:
@@ -45,7 +45,7 @@ function isRetryableError(error: unknown): boolean {
 
   const status = error.status;
 
-  return status === 429 || status === 500 || status === 503;
+  return status === 429 || status === 500 || status === 503 || status === 504;
 }
 
 // Generate a direct answer based only on relevant document chunks.
@@ -70,7 +70,7 @@ export async function answerQuestion(
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: "gemini-3.5-flash-lite",
         contents: `
 ענה על השאלה בעברית, ורק על סמך המידע שמופיע בקטעי המסמך המצורפים.
 

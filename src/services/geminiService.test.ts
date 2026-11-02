@@ -29,7 +29,7 @@ describe("summarizeDocument", () => {
     expect(result).toBe("- Point one\n- Point two");
     expect(generateContentMock).toHaveBeenCalledOnce();
     expect(generateContentMock).toHaveBeenCalledWith({
-      model: "gemini-3.8-flash",
+      model: "gemini-3.5-flash-lite",
       contents: expect.stringContaining("Test document"),
     });
   });
@@ -47,6 +47,17 @@ describe("summarizeDocument", () => {
   it("should retry a temporary API error and then succeed", async () => {
     generateContentMock
       .mockRejectedValueOnce({ status: 503 })
+      .mockResolvedValueOnce({ text: "Summary" });
+
+    const result = await summarizeDocument("Test document");
+
+    expect(result).toBe("Summary");
+    expect(generateContentMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("should retry a deadline exceeded error and then succeed", async () => {
+    generateContentMock
+      .mockRejectedValueOnce({ status: 504 })
       .mockResolvedValueOnce({ text: "Summary" });
 
     const result = await summarizeDocument("Test document");
@@ -115,7 +126,7 @@ describe("answerQuestion", () => {
     expect(result).toBe("The document describes a task management system.");
     expect(generateContentMock).toHaveBeenCalledOnce();
     expect(generateContentMock).toHaveBeenCalledWith({
-      model: "gemini-3.8-flash",
+      model: "gemini-3.5-flash-lite",
       contents: expect.stringContaining(
         "The system manages tasks and sends deadline reminders.",
       ),
