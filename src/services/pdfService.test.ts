@@ -35,7 +35,7 @@ describe("extractTextFromPdf", () => {
       text: "  Extracted PDF text  \n",
     });
 
-    const result = await extractTextFromPdf(Buffer.from("fake PDF"));
+    const result = await extractTextFromPdf(Buffer.from("%PDF-1.7\nfake PDF"));
 
     expect(result).toBe("Extracted PDF text");
     expect(PDFParseMock).toHaveBeenCalledOnce();
@@ -48,9 +48,9 @@ describe("extractTextFromPdf", () => {
       text: "   \n ",
     });
 
-    await expect(extractTextFromPdf(Buffer.from("fake PDF"))).rejects.toThrow(
-      "No extractable text found in PDF",
-    );
+    await expect(
+      extractTextFromPdf(Buffer.from("%PDF-1.7\nfake PDF")),
+    ).rejects.toThrow("No extractable text found in PDF");
 
     expect(destroyMock).toHaveBeenCalledOnce();
   });
@@ -58,10 +58,22 @@ describe("extractTextFromPdf", () => {
   it("should propagate a text extraction error", async () => {
     getTextMock.mockRejectedValue(new Error("PDF extraction failed"));
 
-    await expect(extractTextFromPdf(Buffer.from("fake PDF"))).rejects.toThrow(
-      "PDF extraction failed",
-    );
+    await expect(
+      extractTextFromPdf(Buffer.from("%PDF-1.7\nfake PDF")),
+    ).rejects.toThrow("PDF extraction failed");
 
     expect(destroyMock).toHaveBeenCalledOnce();
+  });
+
+  it("should reject a buffer that is not a PDF file", async () => {
+    const buffer = Buffer.from("This is not a PDF file");
+
+    await expect(extractTextFromPdf(buffer)).rejects.toThrow(
+      "Invalid PDF file",
+    );
+
+    expect(PDFParseMock).not.toHaveBeenCalled();
+    expect(getTextMock).not.toHaveBeenCalled();
+    expect(destroyMock).not.toHaveBeenCalled();
   });
 });

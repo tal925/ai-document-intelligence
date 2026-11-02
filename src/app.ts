@@ -103,11 +103,15 @@ async function extractDocumentText(file: Express.Multer.File): Promise<string> {
 
 // Check whether an error should be returned as a client error.
 function isDocumentInputError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    (error.message === "Unsupported file type" ||
-      error.message === "No extractable text found in file")
-  );
+  const inputErrors = [
+    "Unsupported file type",
+    "No extractable text found in file",
+    "Invalid PDF file",
+    "Invalid DOCX file",
+    "Invalid text file encoding",
+  ];
+
+  return error instanceof Error && inputErrors.includes(error.message);
 }
 
 // Check whether Gemini rejected a request because of quota or rate limits.

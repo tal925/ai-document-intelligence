@@ -36,4 +36,20 @@ describe("extractTextFromFile", () => {
       "DocuMind DOCX test content",
     );
   });
+
+  it("should reject a text file with invalid UTF-8 encoding", async () => {
+    const buffer = Buffer.from([0xff, 0xfe, 0xfd]);
+
+    await expect(extractTextFromFile(buffer, "txt")).rejects.toThrow(
+      "Invalid text file encoding",
+    );
+  });
+
+  it("should reject an invalid DOCX file", async () => {
+    const buffer = Buffer.from("This is not a valid DOCX file", "utf-8");
+
+    await expect(extractTextFromFile(buffer, "docx")).rejects.toThrow(
+      "Invalid DOCX file",
+    );
+  });
 });

@@ -2,6 +2,14 @@ import { PDFParse } from "pdf-parse";
 
 // Extract text from a PDF buffer
 export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
+  // Validate the PDF file signature before parsing.
+  if (
+    buffer.length < 5 ||
+    buffer.subarray(0, 5).toString("ascii") !== "%PDF-"
+  ) {
+    throw new Error("Invalid PDF file");
+  }
+
   const parser = new PDFParse({ data: buffer });
 
   try {

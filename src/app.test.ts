@@ -362,6 +362,70 @@ describe("POST /api/documents/upload", () => {
 
     expect(summarizeDocument).not.toHaveBeenCalled();
   });
+
+  it("should return 400 when a PDF file is invalid", async () => {
+    vi.mocked(extractTextFromPdf).mockRejectedValue(
+      new Error("Invalid PDF file"),
+    );
+
+    const response = await request(app)
+      .post("/api/documents/upload")
+      .attach("file", Buffer.from("invalid PDF"), {
+        filename: "invalid.pdf",
+        contentType: "application/pdf",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      success: false,
+      error: "Unsupported file type or empty document",
+    });
+
+    expect(summarizeDocument).not.toHaveBeenCalled();
+  });
+
+  it("should return 400 when a text file has invalid UTF-8 encoding", async () => {
+    vi.mocked(extractTextFromFile).mockRejectedValue(
+      new Error("Invalid text file encoding"),
+    );
+
+    const response = await request(app)
+      .post("/api/documents/upload")
+      .attach("file", Buffer.from([0xff, 0xfe, 0xfd]), {
+        filename: "invalid.txt",
+        contentType: "text/plain",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      success: false,
+      error: "Unsupported file type or empty document",
+    });
+
+    expect(summarizeDocument).not.toHaveBeenCalled();
+  });
+
+  it("should return 400 when a DOCX file is invalid", async () => {
+    vi.mocked(extractTextFromFile).mockRejectedValue(
+      new Error("Invalid DOCX file"),
+    );
+
+    const response = await request(app)
+      .post("/api/documents/upload")
+      .attach("file", Buffer.from("invalid DOCX"), {
+        filename: "invalid.docx",
+        contentType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      success: false,
+      error: "Unsupported file type or empty document",
+    });
+
+    expect(summarizeDocument).not.toHaveBeenCalled();
+  });
 });
 
 describe("POST /api/documents/search", () => {

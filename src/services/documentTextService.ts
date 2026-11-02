@@ -10,10 +10,18 @@ export async function extractTextFromFile(
   let text: string;
 
   if (fileType === "docx") {
-    const result = await mammoth.extractRawText({ buffer });
-    text = result.value.trim();
+    try {
+      const result = await mammoth.extractRawText({ buffer });
+      text = result.value.trim();
+    } catch {
+      throw new Error("Invalid DOCX file");
+    }
   } else {
-    text = buffer.toString("utf-8").trim();
+    try {
+      text = new TextDecoder("utf-8", { fatal: true }).decode(buffer).trim();
+    } catch {
+      throw new Error("Invalid text file encoding");
+    }
   }
 
   if (!text) {
