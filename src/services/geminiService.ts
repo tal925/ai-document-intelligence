@@ -1,5 +1,5 @@
 import { ai } from "./geminiClient.js";
-import type { SearchResult } from "./semanticSearchService.js";
+import type { TextChunk } from "./chunkingService.js";
 
 // Generate a summary with retries for temporary errors.
 export async function summarizeDocument(content: string): Promise<string> {
@@ -51,7 +51,7 @@ function isRetryableError(error: unknown): boolean {
 // Generate a direct answer based only on relevant document chunks.
 export async function answerQuestion(
   question: string,
-  chunks: SearchResult[],
+  chunks: TextChunk[],
 ): Promise<string> {
   if (!question.trim()) {
     throw new Error("Question cannot be empty");

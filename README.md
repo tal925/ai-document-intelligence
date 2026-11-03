@@ -13,6 +13,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - Text chunking and embedding generation.
 - Semantic search over document content.
 - Retrieval-Augmented Generation (RAG) for document-grounded question answering.
+- Context expansion for RAG: includes adjacent document chunks around semantically retrieved passages, removes duplicates, and preserves document order before answer generation.
 - Prompt-injection mitigation through instructions that treat document content as untrusted data rather than executable instructions.
 - Relevant source passages and similarity scores in search and Q&A responses.
 - Persistent local JSON storage for indexed documents.
@@ -61,7 +62,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 3. **Chunking and embeddings:** Text is split into chunks, and embeddings are generated.
 4. **Storage:** Indexed chunks and embeddings are saved in a local JSON file. Document metadata is exposed through the document-list API for the frontend library.
 5. **Retrieval:** A user question is compared with stored document chunks using semantic search.
-6. **Answer generation:** Relevant passages are sent to Gemini to generate a grounded answer.
+6. **Context expansion and answer generation:** Adjacent chunks are added around retrieved passages, with duplicates removed and document order preserved. The expanded context is sent to Gemini to generate a grounded answer.
 7. **Sources:** The API returns the answer alongside relevant source passages and similarity scores.
 8. **Deletion:** Users can delete saved documents through the frontend. The backend removes the corresponding document from persistent storage.
 

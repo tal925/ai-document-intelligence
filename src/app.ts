@@ -1,4 +1,4 @@
-import express from "express";
+﻿import express from "express";
 import { summarizeDocument, answerQuestion } from "./services/geminiService.js";
 import multer from "multer";
 import { extractTextFromPdf } from "./services/pdfService.js";
@@ -15,6 +15,7 @@ import {
   deleteDocument,
 } from "./services/documentStore.js";
 import { extractTextFromFile } from "./services/documentTextService.js";
+import { expandContext } from "./services/contextExpansionService.js";
 
 const app = express();
 
@@ -367,9 +368,15 @@ app.post("/api/documents/ask", async (req, res) => {
       });
     }
 
+    console.log("[ask] Expanding retrieved context");
+
+    const expandedContext = expandContext(results, embeddedChunks);
+
+    console.log(`[ask] Context expanded. Chunks: ${expandedContext.length}`);
+
     console.log("[ask] Sending question to Gemini");
 
-    const answer = await answerQuestion(question, results);
+    const answer = await answerQuestion(question, expandedContext);
 
     console.log("[ask] Gemini answer received");
 

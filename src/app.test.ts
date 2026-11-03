@@ -16,6 +16,7 @@ import {
   deleteDocument,
 } from "./services/documentStore.js";
 import { extractTextFromFile } from "./services/documentTextService.js";
+import { expandContext } from "./services/contextExpansionService.js";
 
 // Replace Gemini with controllable mocks.
 vi.mock("./services/geminiService.js", () => ({
@@ -53,12 +54,17 @@ vi.mock("./services/documentTextService.js", () => ({
   extractTextFromFile: vi.fn(),
 }));
 
+vi.mock("./services/contextExpansionService.js", () => ({
+  expandContext: vi.fn(),
+}));
+
 beforeEach(() => {
   vi.resetAllMocks();
 
   vi.mocked(chunkText).mockImplementation((content) => [{ index: 0, content }]);
 
   vi.mocked(getDocument).mockReturnValue(undefined);
+  vi.mocked(expandContext).mockReturnValue([]);
 });
 
 describe("GET /api/health", () => {
@@ -812,6 +818,13 @@ describe("POST /api/documents/ask", () => {
       "Employees can work remotely two days a week.",
     );
 
+    const expandedContext = [
+      { index: 0, content: "Employees can work from home two days a week." },
+      { index: 1, content: "Employees must notify their manager." },
+    ];
+
+    vi.mocked(expandContext).mockReturnValue(expandedContext);
+
     const response = await request(app).post("/api/documents/ask").send({
       documentId: "test-document-id",
       question: "How many remote work days?",
@@ -830,9 +843,11 @@ describe("POST /api/documents/ask", () => {
       "How many remote work days?",
       embeddedChunks,
     );
+    expect(expandContext).toHaveBeenCalledWith(searchResults, embeddedChunks);
+
     expect(answerQuestion).toHaveBeenCalledWith(
       "How many remote work days?",
-      searchResults,
+      expandedContext,
     );
   });
 
@@ -860,6 +875,13 @@ describe("POST /api/documents/ask", () => {
     vi.mocked(semanticSearchPrepared).mockResolvedValue(searchResults);
     vi.mocked(answerQuestion).mockResolvedValue(answer);
 
+    const expandedContext = [
+      { index: 0, content: "Employees can work from home two days a week." },
+      { index: 1, content: "Employees must notify their manager." },
+    ];
+
+    vi.mocked(expandContext).mockReturnValue(expandedContext);
+
     const response = await request(app).post("/api/documents/ask").send({
       documentId: "test-document-id",
       question,
@@ -878,7 +900,9 @@ describe("POST /api/documents/ask", () => {
       question,
       embeddedChunks,
     );
-    expect(answerQuestion).toHaveBeenCalledWith(question, searchResults);
+    expect(expandContext).toHaveBeenCalledWith(searchResults, embeddedChunks);
+
+    expect(answerQuestion).toHaveBeenCalledWith(question, expandedContext);
   });
 
   it("should return a fallback answer when no relevant chunks are found", async () => {
