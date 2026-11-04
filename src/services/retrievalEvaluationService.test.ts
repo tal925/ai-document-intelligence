@@ -68,20 +68,83 @@ describe("retrievalEvaluationService", () => {
 
       expect(report).toEqual({
         totalCases: 2,
+        answerableCases: 2,
+        unanswerableCases: 0,
         averageRecall: 0.75,
         averagePrecision: 0.75,
+        answerableRecall: 0.75,
+        answerablePrecision: 0.75,
+        unanswerableFalsePositiveRate: 0,
         results: [
-          { id: "case-1", recall: 1, precision: 1 },
-          { id: "case-2", recall: 0.5, precision: 0.5 },
+          {
+            id: "case-1",
+            recall: 1,
+            precision: 1,
+            isAnswerable: true,
+            hasRetrievedResults: true,
+          },
+          {
+            id: "case-2",
+            recall: 0.5,
+            precision: 0.5,
+            isAnswerable: true,
+            hasRetrievedResults: true,
+          },
         ],
+      });
+    });
+
+    it("should distinguish answerable and unanswerable cases", () => {
+      const report = evaluateRetrieval([
+        {
+          id: "answerable",
+          retrievedChunkIndexes: [1, 2],
+          relevantChunkIndexes: [1],
+        },
+        {
+          id: "unanswerable-with-results",
+          retrievedChunkIndexes: [5],
+          relevantChunkIndexes: [],
+        },
+        {
+          id: "unanswerable-without-results",
+          retrievedChunkIndexes: [],
+          relevantChunkIndexes: [],
+        },
+      ]);
+
+      expect(report.totalCases).toBe(3);
+      expect(report.answerableCases).toBe(1);
+      expect(report.unanswerableCases).toBe(2);
+
+      expect(report.answerableRecall).toBe(1);
+      expect(report.answerablePrecision).toBe(0.5);
+
+      expect(report.unanswerableFalsePositiveRate).toBe(0.5);
+
+      expect(report.results[1]).toMatchObject({
+        id: "unanswerable-with-results",
+        isAnswerable: false,
+        hasRetrievedResults: true,
+      });
+
+      expect(report.results[2]).toMatchObject({
+        id: "unanswerable-without-results",
+        isAnswerable: false,
+        hasRetrievedResults: false,
       });
     });
 
     it("should return zero averages when there are no evaluation cases", () => {
       expect(evaluateRetrieval([])).toEqual({
         totalCases: 0,
+        answerableCases: 0,
+        unanswerableCases: 0,
         averageRecall: 0,
         averagePrecision: 0,
+        answerableRecall: 0,
+        answerablePrecision: 0,
+        unanswerableFalsePositiveRate: 0,
         results: [],
       });
     });

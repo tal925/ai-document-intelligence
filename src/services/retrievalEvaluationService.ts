@@ -8,12 +8,19 @@ export interface RetrievalCaseResult {
   id: string;
   recall: number;
   precision: number;
+  isAnswerable: boolean;
+  hasRetrievedResults: boolean;
 }
 
 export interface RetrievalEvaluationReport {
   totalCases: number;
+  answerableCases: number;
+  unanswerableCases: number;
   averageRecall: number;
   averagePrecision: number;
+  answerableRecall: number;
+  answerablePrecision: number;
+  unanswerableFalsePositiveRate: number;
   results: RetrievalCaseResult[];
 }
 
@@ -73,24 +80,37 @@ export function evaluateRetrieval(
       evaluationCase.retrievedChunkIndexes,
       evaluationCase.relevantChunkIndexes,
     ),
+    isAnswerable: evaluationCase.relevantChunkIndexes.length > 0,
+    hasRetrievedResults: evaluationCase.retrievedChunkIndexes.length > 0,
   }));
 
-  if (results.length === 0) {
-    return {
-      totalCases: 0,
-      averageRecall: 0,
-      averagePrecision: 0,
-      results: [],
-    };
-  }
+  const answerableResults = results.filter((result) => result.isAnswerable);
+
+  const unanswerableResults = results.filter((result) => !result.isAnswerable);
+
+  const average = (values: number[]): number =>
+    values.length === 0
+      ? 0
+      : values.reduce((sum, value) => sum + value, 0) / values.length;
 
   return {
     totalCases: results.length,
-    averageRecall:
-      results.reduce((sum, result) => sum + result.recall, 0) / results.length,
-    averagePrecision:
-      results.reduce((sum, result) => sum + result.precision, 0) /
-      results.length,
+    answerableCases: answerableResults.length,
+    unanswerableCases: unanswerableResults.length,
+
+    averageRecall: average(results.map((result) => result.recall)),
+    averagePrecision: average(results.map((result) => result.precision)),
+
+    answerableRecall: average(answerableResults.map((result) => result.recall)),
+
+    answerablePrecision: average(
+      answerableResults.map((result) => result.precision),
+    ),
+
+    unanswerableFalsePositiveRate: average(
+      unanswerableResults.map((result) => (result.hasRetrievedResults ? 1 : 0)),
+    ),
+
     results,
   };
 }

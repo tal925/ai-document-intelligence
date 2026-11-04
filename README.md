@@ -22,9 +22,11 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - Upload size limit of 5 MB and input validation.
 - Validation of uploaded file content, including invalid PDF signatures, malformed or password-protected PDFs, malformed DOCX files, invalid UTF-8 text, and empty documents.
 - API error handling and automated tests.
-- Retrieval evaluation framework with Recall@K and Precision@K metrics, per-case results, and aggregate evaluation reports.
+- Retrieval evaluation framework with Recall@K, Precision@K, and Unanswerable False Positive Rate metrics.
+- Separate evaluation reporting for answerable and unanswerable queries, including per-case results and aggregate metrics.
 - Automated retrieval pipeline tests using a synthetic dataset covering English and Hebrew queries, multi-chunk retrieval, and questions with no relevant answer.
 - Deterministic retrieval evaluation tests using mocked embeddings to validate retrieval behavior and metric calculations without external AI API calls.
+- Real embedding-based retrieval evaluation using Google Gemini, with configurable Top-K and per-query retrieved chunk indexes and similarity scores.
 
 **Frontend**
 
@@ -43,7 +45,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - A dedicated UI for document summarization and semantic search.
 - Spreadsheet file support.
 - Database-backed document storage.
-- Larger, representative retrieval evaluation datasets and evaluation using real embedding models.
+- Larger and more representative retrieval evaluation datasets.
 - More extensive end-to-end testing.
 - OCR support for scanned documents.
 - User accounts and access permissions.
@@ -69,7 +71,8 @@ A full-stack document intelligence application built with TypeScript, Express, R
 5. **Retrieval:** A user question is compared with stored document chunks using semantic search.
 6. **Context expansion and answer generation:** Adjacent chunks are added around retrieved passages, with duplicates removed and document order preserved. The expanded context is sent to Gemini to generate a grounded answer.
 7. **Sources:** The API returns the answer alongside relevant source passages and similarity scores.
-8. **Deletion:** Users can delete saved documents through the frontend. The backend removes the corresponding document from persistent storage.
+8. **Evaluation:** A retrieval evaluation pipeline measures retrieval quality using Recall@K, Precision@K, and the false-positive rate for unanswerable queries. Evaluation can use real Gemini embeddings or mocked embeddings for deterministic tests.
+9. **Deletion:** Users can delete saved documents through the frontend. The backend removes the corresponding document from persistent storage.
 
 ## API Endpoints
 
@@ -140,7 +143,7 @@ npm --prefix client run dev
 
 Open the local URL printed by Vite in the terminal.
 
-### 5. Run backend tests
+### 5. Run backend tests and type checking
 
 ```bash
 npm test
@@ -154,6 +157,14 @@ npm --prefix client test
 npm --prefix client run build
 ```
 
+### 7. Run retrieval evaluation
+
+```bash
+npm run evaluate:retrieval
+```
+
+This command runs the retrieval evaluation pipeline using real Google Gemini embeddings. It requires a valid `GEMINI_API_KEY` and makes external API calls.
+
 ## Storage and Limitations
 
 - Indexed documents are persisted in `data/documents.json` by default.
@@ -163,10 +174,11 @@ npm --prefix client run build
 - Document-grounded answers depend on retrieval quality and the content available in the indexed document.
 - Scanned PDFs requiring OCR are not currently supported.
 - The frontend does not yet expose every backend capability; summarization and semantic search are available through the API.
+- Retrieval evaluation currently uses a small synthetic dataset and should not be interpreted as a general benchmark of retrieval performance.
 
 ## Project Status
 
-This repository contains a working full-stack prototype with document indexing, semantic retrieval, grounded question answering, and document management. Features listed under **Planned** are not represented as implemented functionality.
+This repository contains a working full-stack prototype with document indexing, semantic retrieval, grounded question answering, document management, and a retrieval evaluation pipeline. Features listed under **Planned** are not represented as implemented functionality.
 
 ## License
 

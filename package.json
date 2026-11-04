@@ -4,8 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "vitest run --exclude client/**"
-  },
+  "test": "vitest run --exclude client/**",
+  "evaluate:retrieval": "tsx src/scripts/evaluateRetrieval.ts"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
