@@ -5,6 +5,8 @@ import {
   semanticSearchPrepared,
 } from "../services/semanticSearchService.js";
 
+import type { SearchResult } from "../services/semanticSearchService.js";
+
 import { evaluateRetrieval } from "../services/retrievalEvaluationService.js";
 
 import {
@@ -14,8 +16,16 @@ import {
 
 const TOP_K = 3;
 
+const SIMILARITY_THRESHOLDS = [0.62, 0.65, 0.7, 0.75, 0.8, 0.85];
+
+interface EvaluatedCase {
+  id: string;
+  searchResults: SearchResult[];
+  relevantChunkIndexes: number[];
+}
+
 async function runRetrievalEvaluation(): Promise<void> {
-  console.log("Starting retrieval evaluation with real Gemini embeddings...");
+  console.log("Starting real Gemini retrieval evaluation...");
   console.log(`Dataset: ${evaluationChunks.length} chunks`);
   console.log(`Evaluation cases: ${evaluationCases.length}`);
   console.log(`Top K: ${TOP_K}`);
@@ -23,16 +33,14 @@ async function runRetrievalEvaluation(): Promise<void> {
 
   const startTime = Date.now();
 
-  // Generate real embeddings for all document chunks once.
   console.log("Generating document chunk embeddings...");
   const preparedChunks = await prepareChunks(evaluationChunks);
 
   console.log(`Generated ${preparedChunks.length} chunk embeddings.`);
   console.log("");
 
-  const evaluationInputs = [];
+  const evaluatedCases: EvaluatedCase[] = [];
 
-  // Evaluate each question using the real embedding model.
   for (const [index, evaluationCase] of evaluationCases.entries()) {
     console.log(
       `[${index + 1}/${evaluationCases.length}] Evaluating: ${evaluationCase.id}`,
@@ -44,11 +52,9 @@ async function runRetrievalEvaluation(): Promise<void> {
       TOP_K,
     );
 
-    const retrievedChunkIndexes = searchResults.map((result) => result.index);
-
-    evaluationInputs.push({
+    evaluatedCases.push({
       id: evaluationCase.id,
-      retrievedChunkIndexes,
+      searchResults,
       relevantChunkIndexes: evaluationCase.relevantChunkIndexes,
     });
 
@@ -66,41 +72,51 @@ async function runRetrievalEvaluation(): Promise<void> {
     );
   }
 
-  const report = evaluateRetrieval(evaluationInputs);
+  console.log("");
+  console.log("========== THRESHOLD SWEEP ==========");
+  console.log(
+    "Threshold | Answerable Recall | Answerable Precision | Unanswerable FPR",
+  );
+  console.log(
+    "----------|------------------|----------------------|-----------------",
+  );
+
+  for (const threshold of SIMILARITY_THRESHOLDS) {
+    const evaluationInputs = evaluatedCases.map((evaluationCase) => ({
+      id: evaluationCase.id,
+      retrievedChunkIndexes: evaluationCase.searchResults
+        .filter((result) => result.score >= threshold)
+        .slice(0, TOP_K)
+        .map((result) => result.index),
+      relevantChunkIndexes: evaluationCase.relevantChunkIndexes,
+    }));
+
+    const report = evaluateRetrieval(evaluationInputs);
+
+    console.log(
+      `${threshold.toFixed(2).padEnd(9)} | ` +
+        `${(report.answerableRecall * 100).toFixed(2).padStart(16)}% | ` +
+        `${(report.answerablePrecision * 100).toFixed(2).padStart(20)}% | ` +
+        `${(report.unanswerableFalsePositiveRate * 100).toFixed(2).padStart(15)}%`,
+    );
+
+    const falsePositiveCases = report.results.filter(
+      (result) => !result.isAnswerable && result.hasRetrievedResults,
+    );
+
+    if (falsePositiveCases.length > 0) {
+      console.log(
+        `  False positive cases: ${falsePositiveCases
+          .map((result) => result.id)
+          .join(", ")}`,
+      );
+    }
+  }
+
   const durationSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
 
   console.log("");
-  console.log("========== RETRIEVAL EVALUATION REPORT ==========");
-  console.log(`Total cases: ${report.totalCases}`);
-  console.log(
-    `Average Recall@${TOP_K}: ${(report.averageRecall * 100).toFixed(2)}%`,
-  );
-  console.log(
-    `Average Precision@${TOP_K}: ${(report.averagePrecision * 100).toFixed(2)}%`,
-  );
-  console.log(`Duration: ${durationSeconds}s`);
-  console.log("");
-
-  console.log("Per-case results:");
-
-  for (const result of report.results) {
-    console.log(
-      `${result.id}: Recall=${(result.recall * 100).toFixed(0)}%, Precision=${(result.precision * 100).toFixed(0)}%`,
-    );
-  }
-
-  const failedCases = report.results.filter(
-    (result) => result.recall < 1 || result.precision < 1,
-  );
-
-  console.log("");
-  console.log(`Cases requiring review: ${failedCases.length}`);
-
-  for (const failedCase of failedCases) {
-    console.log(
-      `- ${failedCase.id}: Recall=${(failedCase.recall * 100).toFixed(0)}%, Precision=${(failedCase.precision * 100).toFixed(0)}%`,
-    );
-  }
+  console.log(`Evaluation completed in ${durationSeconds}s.`);
 }
 
 runRetrievalEvaluation().catch((error: unknown) => {

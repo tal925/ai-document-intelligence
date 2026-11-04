@@ -1,12 +1,14 @@
+
 {
   "name": "ai-learning-project",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-  "test": "vitest run --exclude client/**",
-  "evaluate:retrieval": "tsx src/scripts/evaluateRetrieval.ts"
-},
+    "test": "vitest run --exclude client/**",
+    "evaluate:retrieval": "tsx src/scripts/evaluateRetrieval.ts",
+    "evaluate:answers": "tsx src/scripts/evaluateAnswers.ts"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",

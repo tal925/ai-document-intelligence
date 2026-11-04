@@ -27,6 +27,10 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - Automated retrieval pipeline tests using a synthetic dataset covering English and Hebrew queries, multi-chunk retrieval, and questions with no relevant answer.
 - Deterministic retrieval evaluation tests using mocked embeddings to validate retrieval behavior and metric calculations without external AI API calls.
 - Real embedding-based retrieval evaluation using Google Gemini, with configurable Top-K and per-query retrieved chunk indexes and similarity scores.
+- Answer evaluation framework measuring answer accuracy, expected-fact coverage, and abstention accuracy.
+- Answer evaluation dataset covering answerable and unanswerable questions.
+- Automated answer evaluation tests validating correct answers, missing facts, and appropriate abstention.
+- Answer evaluation pipeline integrating semantic retrieval, context expansion, and Gemini answer generation.
 
 **Frontend**
 
@@ -71,7 +75,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 5. **Retrieval:** A user question is compared with stored document chunks using semantic search.
 6. **Context expansion and answer generation:** Adjacent chunks are added around retrieved passages, with duplicates removed and document order preserved. The expanded context is sent to Gemini to generate a grounded answer.
 7. **Sources:** The API returns the answer alongside relevant source passages and similarity scores.
-8. **Evaluation:** A retrieval evaluation pipeline measures retrieval quality using Recall@K, Precision@K, and the false-positive rate for unanswerable queries. Evaluation can use real Gemini embeddings or mocked embeddings for deterministic tests.
+8. **Evaluation:** Separate retrieval and answer evaluation pipelines measure retrieval quality and generated answer quality. Retrieval metrics include Recall@K, Precision@K, and the false-positive rate for unanswerable queries. Answer metrics include answer accuracy, expected-fact coverage, and abstention accuracy. Evaluation uses real Gemini embeddings and answer generation, while automated unit tests validate metric calculations deterministically.
 9. **Deletion:** Users can delete saved documents through the frontend. The backend removes the corresponding document from persistent storage.
 
 ## API Endpoints
@@ -163,7 +167,13 @@ npm --prefix client run build
 npm run evaluate:retrieval
 ```
 
-This command runs the retrieval evaluation pipeline using real Google Gemini embeddings. It requires a valid `GEMINI_API_KEY` and makes external API calls.
+### 8. Run answer evaluation
+
+```bash
+npm run evaluate:answers
+```
+
+This command runs the answer evaluation pipeline using real Google Gemini embeddings and answer generation. It requires a valid `GEMINI_API_KEY` and makes external API calls.
 
 ## Storage and Limitations
 
