@@ -12,6 +12,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - AI-powered document summarization using Google Gemini.
 - Text chunking and embedding generation.
 - Semantic search over document content.
+- Cross-lingual semantic retrieval, tested with Hebrew questions over English documents and English questions over Hebrew documents.
 - Retrieval-Augmented Generation (RAG) for document-grounded question answering.
 - Context expansion for RAG: includes adjacent document chunks around semantically retrieved passages, removes duplicates, and preserves document order before answer generation.
 - Prompt-injection mitigation through instructions that treat document content as untrusted data rather than executable instructions.
