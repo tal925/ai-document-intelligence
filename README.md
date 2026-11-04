@@ -22,6 +22,8 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - Upload size limit of 5 MB and input validation.
 - Validation of uploaded file content, including invalid PDF signatures, malformed or password-protected PDFs, malformed DOCX files, invalid UTF-8 text, and empty documents.
 - API error handling and automated tests.
+- Retrieval evaluation framework with Recall@K and Precision@K metrics, per-case results, and aggregate evaluation reports.
+- Automated retrieval evaluation tests using a dedicated synthetic dataset and mocked embeddings.
 
 **Frontend**
 
@@ -40,7 +42,8 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - A dedicated UI for document summarization and semantic search.
 - Spreadsheet file support.
 - Database-backed document storage.
-- More extensive retrieval-quality evaluation and end-to-end testing.
+- Larger, representative retrieval evaluation datasets and evaluation using real embedding models.
+- More extensive end-to-end testing.
 - OCR support for scanned documents.
 - User accounts and access permissions.
 - Conversation history.
