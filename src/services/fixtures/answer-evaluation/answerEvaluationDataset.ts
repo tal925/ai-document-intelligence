@@ -10,7 +10,7 @@ const expectedFactsByCaseId = {
   "vacation-requests": ["חמישה ימי עסקים"],
   "vacation-approval": ["המנהל הישיר"],
   "attendance-reports": ["ימי עבודה", "שעות העבודה", "היעדרויות"],
-  "attendance-corrections": ["בקשה", "מנהל"],
+  "attendance-corrections": ["בקשה", "הסבר", "מנהל", "לבדוק", "לאשר"],
   "attendance-process-combined": [
     "ימי עבודה",
     "שעות העבודה",

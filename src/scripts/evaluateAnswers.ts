@@ -15,9 +15,25 @@ import { answerEvaluationCases } from "../services/fixtures/answer-evaluation/an
 
 const TOP_K = 3;
 
-async function runAnswerEvaluation(): Promise<void> {
-  console.log("Starting answer evaluation...\n");
+const SELECTED_CASE_IDS = [
+  "remote-work-days",
+  "attendance-corrections",
+  "unsupported-benefits",
+  "unsupported-office-location",
+];
 
+async function runAnswerEvaluation(): Promise<void> {
+  console.log("Starting limited answer evaluation...\n");
+
+  const selectedCases = answerEvaluationCases.filter((evaluationCase) =>
+    SELECTED_CASE_IDS.includes(evaluationCase.id),
+  );
+
+  if (selectedCases.length !== SELECTED_CASE_IDS.length) {
+    throw new Error("One or more selected evaluation cases were not found.");
+  }
+
+  console.log(`Selected cases: ${selectedCases.length}`);
   console.log("Preparing document chunks and generating embeddings...");
 
   const preparedChunks = await prepareChunks(evaluationChunks);
@@ -26,7 +42,7 @@ async function runAnswerEvaluation(): Promise<void> {
 
   const evaluatedCases = [];
 
-  for (const evaluationCase of answerEvaluationCases) {
+  for (const evaluationCase of selectedCases) {
     console.log(`Evaluating: ${evaluationCase.id}`);
 
     const searchResults = await semanticSearchPrepared(
@@ -62,7 +78,6 @@ async function runAnswerEvaluation(): Promise<void> {
   console.log(`Incorrect answers: ${report.incorrectAnswers}`);
 
   console.log(`Answer accuracy: ${(report.answerAccuracy * 100).toFixed(2)}%`);
-
   console.log(`Fact coverage: ${(report.factCoverage * 100).toFixed(2)}%`);
 
   console.log(

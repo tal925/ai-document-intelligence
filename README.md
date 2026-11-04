@@ -16,6 +16,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - Retrieval-Augmented Generation (RAG) for document-grounded question answering.
 - Context expansion for RAG: includes adjacent document chunks around semantically retrieved passages, removes duplicates, and preserves document order before answer generation.
 - Prompt-injection mitigation through instructions that treat document content as untrusted data rather than executable instructions.
+- Source-grounded answer generation with instructions to include all relevant facts and process steps without omitting essential information.
 - Relevant source passages and similarity scores in search and Q&A responses.
 - Persistent local JSON storage for indexed documents.
 - Document deletion from persistent storage.
@@ -31,6 +32,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - Answer evaluation dataset covering answerable and unanswerable questions.
 - Automated answer evaluation tests validating correct answers, missing facts, and appropriate abstention.
 - Answer evaluation pipeline integrating semantic retrieval, context expansion, and Gemini answer generation.
+- Limited real-API answer evaluation configured to run four selected cases to control external API usage.
 
 **Frontend**
 
@@ -49,11 +51,12 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - A dedicated UI for document summarization and semantic search.
 - Spreadsheet file support.
 - Database-backed document storage.
-- Larger and more representative retrieval evaluation datasets.
+- Larger and more representative retrieval and answer evaluation datasets.
 - More extensive end-to-end testing.
 - OCR support for scanned documents.
 - User accounts and access permissions.
 - Conversation history.
+- Further frontend UI/UX improvements.
 
 ## Technology Stack
 
@@ -73,9 +76,9 @@ A full-stack document intelligence application built with TypeScript, Express, R
 3. **Chunking and embeddings:** Text is split into chunks, and embeddings are generated.
 4. **Storage:** Indexed chunks and embeddings are saved in a local JSON file. Document metadata is exposed through the document-list API for the frontend library.
 5. **Retrieval:** A user question is compared with stored document chunks using semantic search.
-6. **Context expansion and answer generation:** Adjacent chunks are added around retrieved passages, with duplicates removed and document order preserved. The expanded context is sent to Gemini to generate a grounded answer.
+6. **Context expansion and answer generation:** Adjacent chunks are added around retrieved passages, with duplicates removed and document order preserved. The expanded context is sent to Gemini to generate a grounded answer. Prompt instructions emphasize completeness while preventing unsupported claims.
 7. **Sources:** The API returns the answer alongside relevant source passages and similarity scores.
-8. **Evaluation:** Separate retrieval and answer evaluation pipelines measure retrieval quality and generated answer quality. Retrieval metrics include Recall@K, Precision@K, and the false-positive rate for unanswerable queries. Answer metrics include answer accuracy, expected-fact coverage, and abstention accuracy. Evaluation uses real Gemini embeddings and answer generation, while automated unit tests validate metric calculations deterministically.
+8. **Evaluation:** Separate retrieval and answer evaluation pipelines measure retrieval quality and generated answer quality. Retrieval metrics include Recall@K, Precision@K, and the false-positive rate for unanswerable queries. Answer metrics include answer accuracy, expected-fact coverage, and abstention accuracy. Evaluation uses real Gemini embeddings and answer generation, while automated unit tests validate metric calculations deterministically. The real-API answer evaluation script currently runs four selected cases from the larger dataset.
 9. **Deletion:** Users can delete saved documents through the frontend. The backend removes the corresponding document from persistent storage.
 
 ## API Endpoints
@@ -173,7 +176,9 @@ npm run evaluate:retrieval
 npm run evaluate:answers
 ```
 
-This command runs the answer evaluation pipeline using real Google Gemini embeddings and answer generation. It requires a valid `GEMINI_API_KEY` and makes external API calls.
+This command runs a limited answer evaluation using four selected cases from the evaluation dataset. It uses real Google Gemini embeddings and answer generation to measure answer accuracy, expected-fact coverage, and abstention accuracy.
+
+The evaluation requires a valid `GEMINI_API_KEY` and makes external API calls. The selected cases are configured in `src/scripts/evaluateAnswers.ts`.
 
 ## Storage and Limitations
 
@@ -185,10 +190,11 @@ This command runs the answer evaluation pipeline using real Google Gemini embedd
 - Scanned PDFs requiring OCR are not currently supported.
 - The frontend does not yet expose every backend capability; summarization and semantic search are available through the API.
 - Retrieval evaluation currently uses a small synthetic dataset and should not be interpreted as a general benchmark of retrieval performance.
+- Answer evaluation currently runs only four selected cases against the real Gemini API; results from this limited run should not be interpreted as a general measure of answer quality.
 
 ## Project Status
 
-This repository contains a working full-stack prototype with document indexing, semantic retrieval, grounded question answering, document management, and a retrieval evaluation pipeline. Features listed under **Planned** are not represented as implemented functionality.
+This repository contains a working full-stack prototype with document indexing, semantic retrieval, grounded question answering, document management, and retrieval and answer evaluation pipelines. Features listed under **Planned** are not represented as implemented functionality.
 
 ## License
 
