@@ -23,7 +23,8 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - Validation of uploaded file content, including invalid PDF signatures, malformed or password-protected PDFs, malformed DOCX files, invalid UTF-8 text, and empty documents.
 - API error handling and automated tests.
 - Retrieval evaluation framework with Recall@K and Precision@K metrics, per-case results, and aggregate evaluation reports.
-- Automated retrieval evaluation tests using a dedicated synthetic dataset and mocked embeddings.
+- Automated retrieval pipeline tests using a synthetic dataset covering English and Hebrew queries, multi-chunk retrieval, and questions with no relevant answer.
+- Deterministic retrieval evaluation tests using mocked embeddings to validate retrieval behavior and metric calculations without external AI API calls.
 
 **Frontend**
 

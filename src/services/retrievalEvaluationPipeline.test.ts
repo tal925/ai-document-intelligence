@@ -22,34 +22,45 @@ describe("retrieval evaluation pipeline", () => {
     vi.clearAllMocks();
   });
 
-  it("should evaluate semantic retrieval using the evaluation dataset", async () => {
-    const embeddingForIndex = (index: number): number[] =>
-      Array.from({ length: evaluationChunks.length }, (_, i) =>
-        i === index ? 1 : 0,
-      );
+  it("should evaluate semantic retrieval across varied evaluation cases", async () => {
+    const vectorSize = evaluationChunks.length + evaluationCases.length;
 
-    const chunkIndexes = new Map(
-      evaluationChunks.map((chunk) => [chunk.content, chunk.index]),
-    );
-
-    const queryIndexes = new Map(
-      evaluationCases.map((evaluationCase) => [
-        evaluationCase.question,
-        evaluationCase.relevantChunkIndexes[0]!,
+    const chunkVectors = new Map(
+      evaluationChunks.map((chunk) => [
+        chunk.content,
+        Array.from({ length: vectorSize }, (_, index) =>
+          index === chunk.index ? 1 : 0,
+        ),
       ]),
     );
 
-    mockGenerateEmbedding.mockImplementation(async (text: string) => {
-      const chunkIndex = chunkIndexes.get(text);
+    const queryVectors = new Map(
+      evaluationCases.map((evaluationCase, caseIndex) => {
+        const vector: number[] = Array.from(
+          { length: vectorSize },
+          (_, index) =>
+            index === evaluationChunks.length + caseIndex ? 0.1 : 0,
+        );
 
-      if (chunkIndex !== undefined) {
-        return embeddingForIndex(chunkIndex);
+        evaluationCase.relevantChunkIndexes.forEach((chunkIndex) => {
+          vector[chunkIndex] = 1;
+        });
+
+        return [evaluationCase.question, vector];
+      }),
+    );
+
+    mockGenerateEmbedding.mockImplementation(async (text: string) => {
+      const chunkVector = chunkVectors.get(text);
+
+      if (chunkVector) {
+        return chunkVector;
       }
 
-      const queryIndex = queryIndexes.get(text);
+      const queryVector = queryVectors.get(text);
 
-      if (queryIndex !== undefined) {
-        return embeddingForIndex(queryIndex);
+      if (queryVector) {
+        return queryVector;
       }
 
       throw new Error(`Unexpected embedding input: ${text}`);
@@ -77,12 +88,66 @@ describe("retrieval evaluation pipeline", () => {
 
     expect(report.totalCases).toBe(evaluationCases.length);
     expect(report.results).toHaveLength(evaluationCases.length);
-    expect(report.averageRecall).toBe(1);
-    expect(report.averagePrecision).toBe(1);
 
-    for (const result of report.results) {
-      expect(result.recall).toBe(1);
-      expect(result.precision).toBe(1);
+    for (const evaluationCase of evaluationCases) {
+      const result = report.results.find(
+        (item) => item.id === evaluationCase.id,
+      );
+
+      expect(result).toBeDefined();
+
+      if (evaluationCase.relevantChunkIndexes.length === 0) {
+        expect(result?.recall).toBe(0);
+        expect(result?.precision).toBe(0);
+      } else {
+        expect(result?.recall).toBe(1);
+        expect(result?.precision).toBe(1);
+      }
     }
+  });
+
+  it("should retrieve all relevant chunks for a multi-chunk question", async () => {
+    const multiChunkCase = evaluationCases.find(
+      (evaluationCase) => evaluationCase.id === "attendance-process-combined",
+    );
+
+    expect(multiChunkCase).toBeDefined();
+
+    if (!multiChunkCase) {
+      throw new Error("Multi-chunk evaluation case was not found");
+    }
+
+    const vectorSize = evaluationChunks.length + 1;
+    const queryVector = Array.from({ length: vectorSize }, (_, index) =>
+      multiChunkCase.relevantChunkIndexes.includes(index) ? 0.8 : 0,
+    );
+
+    mockGenerateEmbedding.mockImplementation(async (text: string) => {
+      const chunk = evaluationChunks.find((item) => item.content === text);
+
+      if (chunk) {
+        return Array.from({ length: vectorSize }, (_, index) =>
+          index === chunk.index ? 1 : 0,
+        );
+      }
+
+      if (text === multiChunkCase.question) {
+        return queryVector;
+      }
+
+      throw new Error(`Unexpected embedding input: ${text}`);
+    });
+
+    const preparedChunks = await prepareChunks(evaluationChunks);
+
+    const results = await semanticSearchPrepared(
+      multiChunkCase.question,
+      preparedChunks,
+      3,
+    );
+
+    expect(results.map((result) => result.index)).toEqual(
+      expect.arrayContaining(multiChunkCase.relevantChunkIndexes),
+    );
   });
 });
