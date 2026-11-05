@@ -163,5 +163,22 @@ describe("answerEvaluationService", () => {
         results: [],
       });
     });
+
+    it("should not match an expected fact that appears only as part of a longer word", () => {
+      const report = evaluateAnswers([
+        {
+          id: "manager-role",
+          answer: "The managerial team approved the request.",
+          expectedFacts: ["manager"],
+          shouldAbstain: false,
+        },
+      ]);
+
+      expect(report.results[0]).toMatchObject({
+        isCorrect: false,
+        missingFacts: ["manager"],
+        factCoverage: 0,
+      });
+    });
   });
 });

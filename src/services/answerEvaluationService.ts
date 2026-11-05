@@ -32,6 +32,25 @@ function normalizeText(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function containsWholePhrase(text: string, phrase: string): boolean {
+  const normalizedPhrase = normalizeText(phrase);
+
+  if (!normalizedPhrase) {
+    return false;
+  }
+
+  const pattern = new RegExp(
+    `(?<![\\p{L}\\p{N}])${escapeRegExp(normalizedPhrase)}(?![\\p{L}\\p{N}])`,
+    "u",
+  );
+
+  return pattern.test(text);
+}
+
 function isAbstention(answer: string): boolean {
   return normalizeText(answer) === normalizeText(FALLBACK_ANSWER);
 }
@@ -46,7 +65,7 @@ function factIsPresent(
   const acceptedVariants = [fact, ...aliases];
 
   return acceptedVariants.some((variant) =>
-    normalizedAnswer.includes(normalizeText(variant)),
+    containsWholePhrase(normalizedAnswer, variant),
   );
 }
 
