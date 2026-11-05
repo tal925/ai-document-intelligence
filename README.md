@@ -1,4 +1,4 @@
-# DocuMind — AI Document Intelligence
+﻿# DocuMind — AI Document Intelligence
 
 A full-stack document intelligence application built with TypeScript, Express, React, and Google Gemini. DocuMind extracts text from supported documents, generates AI summaries through its API, performs semantic search, and answers questions grounded in relevant document passages using Retrieval-Augmented Generation (RAG).
 
@@ -37,6 +37,9 @@ A full-stack document intelligence application built with TypeScript, Express, R
 **Frontend**
 
 - React and TypeScript user interface.
+- Bilingual interface with Hebrew and English language support.
+- Responsive three-panel workspace layout, adapting to desktop, tablet, and mobile screens.
+- Expandable saved document library to keep the workspace compact.
 - PDF, TXT, Markdown, and DOCX upload and indexing.
 - Saved document library with document selection and reuse for follow-up questions.
 - Ability to delete saved documents from the library.
@@ -56,7 +59,6 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - OCR support for scanned documents.
 - User accounts and access permissions.
 - Conversation history.
-- Further frontend UI/UX improvements.
 
 ## Technology Stack
 
@@ -181,8 +183,8 @@ npx tsc --noEmit
 The latest verified test run includes:
 
 - **Backend:** 136 tests passed.
-- **Frontend:** 27 tests passed.
-- **Total:** 163 tests passed across 16 test files.
+- **Frontend:** 28 tests passed.
+- **Total:** 164 tests passed across 16 test files.
 
 These results represent the latest recorded test run and may change as the project evolves.
 
@@ -226,7 +228,7 @@ The evaluation requires a valid `GEMINI_API_KEY` and makes external API calls. T
 
 This repository contains a working full-stack prototype with document indexing, semantic retrieval, grounded question answering, document management, and retrieval and answer evaluation pipelines.
 
-The project currently includes 163 passing automated tests across backend and frontend components. Features listed under **Planned** are not represented as implemented functionality.
+The project currently includes 164 passing automated tests across backend and frontend components. Features listed under **Planned** are not represented as implemented functionality.
 
 ## License
 

@@ -18,6 +18,14 @@ vi.mock("./services/documentApi.js", () => ({
   listDocuments: vi.fn(),
 }));
 
+function renderAppInEnglish() {
+  render(<App />);
+
+  fireEvent.click(
+    screen.getByRole("button", { name: /switch to english/i }),
+  );
+}
+
 describe("App", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -38,7 +46,7 @@ describe("App", () => {
   });
 
   it("shows an error when an unsupported file is selected", async () => {
-    render(<App />);
+    renderAppInEnglish();
 
     await screen.findByText(/no saved documents yet/i);
 
@@ -84,7 +92,7 @@ describe("App", () => {
         chunksCount: 2,
       });
 
-      render(<App />);
+      renderAppInEnglish();
 
       await screen.findByText(/no saved documents yet/i);
 
@@ -108,7 +116,7 @@ describe("App", () => {
   );
 
   it("shows an error when the file exceeds 5 MB", async () => {
-    render(<App />);
+    renderAppInEnglish();
 
     await screen.findByText(/no saved documents yet/i);
 
@@ -149,7 +157,7 @@ describe("App", () => {
       ],
     });
 
-    render(<App />);
+    renderAppInEnglish();
 
     const file = new File(["PDF test content"], "document.pdf", {
       type: "application/pdf",
@@ -194,7 +202,7 @@ describe("App", () => {
       new Error("Failed to upload document"),
     );
 
-    render(<App />);
+    renderAppInEnglish();
 
     const file = new File(["PDF test content"], "document.pdf", {
       type: "application/pdf",
@@ -221,7 +229,7 @@ describe("App", () => {
       new Error("Failed to get an answer."),
     );
 
-    render(<App />);
+    renderAppInEnglish();
 
     const file = new File(["PDF test content"], "document.pdf", {
       type: "application/pdf",
@@ -276,7 +284,7 @@ describe("App", () => {
         }),
     );
 
-    render(<App />);
+    renderAppInEnglish();
 
     const fileInput = screen.getByLabelText(/choose a document/i);
     const file = new File(["PDF test content"], "document.pdf", {
@@ -324,7 +332,7 @@ describe("App", () => {
       chunksCount: 2,
     });
 
-    render(<App />);
+    renderAppInEnglish();
 
     const file = new File(["PDF test content"], "document.pdf", {
       type: "application/pdf",
@@ -374,7 +382,7 @@ describe("App", () => {
         }),
     );
 
-    render(<App />);
+    renderAppInEnglish();
 
     const file = new File(["PDF test content"], "document.pdf", {
       type: "application/pdf",
@@ -426,7 +434,7 @@ describe("App", () => {
       ],
     });
 
-    render(<App />);
+    renderAppInEnglish();
 
     expect(
       await screen.findByText("company-policy.pdf"),
@@ -434,7 +442,7 @@ describe("App", () => {
 
     expect(
       screen.getByText(
-        new Date("2026-10-20T10:00:00.000Z").toLocaleDateString(),
+        new Date("2026-10-20T10:00:00.000Z").toLocaleDateString("en-US"),
       ),
     ).toBeInTheDocument();
   });
@@ -459,7 +467,7 @@ describe("App", () => {
       sources: [],
     });
 
-    render(<App />);
+    renderAppInEnglish();
 
     const savedDocument = await screen.findByText("company-policy.pdf");
     fireEvent.click(savedDocument.closest("button")!);
@@ -492,7 +500,7 @@ describe("App", () => {
         documents: [],
       });
 
-    render(<App />);
+    renderAppInEnglish();
 
     expect(
       await screen.findByText(/could not load saved documents/i),
@@ -517,7 +525,7 @@ describe("App", () => {
       ],
     });
 
-    render(<App />);
+    renderAppInEnglish();
 
     const deleteButton = await screen.findByRole("button", {
       name: "Delete company-policy.pdf",
@@ -547,7 +555,7 @@ describe("App", () => {
 
     vi.mocked(window.confirm).mockReturnValue(false);
 
-    render(<App />);
+    renderAppInEnglish();
 
     fireEvent.click(
       await screen.findByRole("button", {
@@ -575,7 +583,7 @@ describe("App", () => {
       new Error("Failed to delete document"),
     );
 
-    render(<App />);
+    renderAppInEnglish();
 
     fireEvent.click(
       await screen.findByRole("button", {
@@ -588,5 +596,37 @@ describe("App", () => {
     );
 
     expect(screen.getByText("company-policy.pdf")).toBeInTheDocument();
+  });
+
+    it("renders in Hebrew by default and switches between languages", async () => {
+    render(<App />);
+
+    await screen.findByText(/עדיין אין מסמכים שמורים/i);
+
+    expect(
+      screen.getByRole("heading", { name: /ספריית המסמכים/i }),
+    ).toBeInTheDocument();
+
+    expect(document.querySelector(".app")).toHaveAttribute("lang", "he");
+    expect(document.querySelector(".app")).toHaveAttribute("dir", "rtl");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /switch to english/i }),
+    );
+
+    expect(
+      screen.getByRole("heading", { name: /saved documents/i }),
+    ).toBeInTheDocument();
+
+    expect(document.querySelector(".app")).toHaveAttribute("lang", "en");
+    expect(document.querySelector(".app")).toHaveAttribute("dir", "ltr");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /החלפה לעברית/i }),
+    );
+
+    expect(
+      screen.getByRole("heading", { name: /ספריית המסמכים/i }),
+    ).toBeInTheDocument();
   });
 });

@@ -11,10 +11,12 @@ import type {
   DocumentSource,
   DocumentSummary,
 } from './services/documentApi.js'
+import { translate, type Language, type TranslationKey } from './i18n.js'
 import './App.css'
 
 const SUPPORTED_EXTENSIONS = ['.pdf', '.txt', '.md', '.docx']
 const MAX_FILE_SIZE = 5 * 1024 * 1024
+const INITIAL_VISIBLE_DOCUMENTS = 3
 
 const ACCEPTED_FILE_TYPES = [
   '.pdf',
@@ -53,6 +55,23 @@ function isSupportedFile(file: File): boolean {
 }
 
 function App() {
+  const [language, setLanguage] = useState<Language>('he')
+
+  function t(
+    key: TranslationKey,
+    values?: Record<string, string | number>,
+  ): string {
+    let result = translate(language, key)
+
+    if (values) {
+      for (const [placeholder, value] of Object.entries(values)) {
+        result = result.replace(`{${placeholder}}`, String(value))
+      }
+    }
+
+    return result
+  }
+
   const [question, setQuestion] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [documentId, setDocumentId] = useState('')
@@ -64,9 +83,14 @@ function App() {
   const [error, setError] = useState('')
 
   const [documents, setDocuments] = useState<DocumentSummary[]>([])
+  const [showAllDocuments, setShowAllDocuments] = useState(false)
   const [loadingDocuments, setLoadingDocuments] = useState(true)
   const [libraryError, setLibraryError] = useState('')
   const [deletingDocumentId, setDeletingDocumentId] = useState('')
+
+  const visibleDocuments = showAllDocuments
+    ? documents
+    : documents.slice(0, INITIAL_VISIBLE_DOCUMENTS)
 
   const askingRef = useRef(false)
 
@@ -78,9 +102,7 @@ function App() {
       setDocuments(result.documents)
     } catch (err) {
       setLibraryError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to load saved documents.',
+        err instanceof Error ? err.message : t('loadFailed'),
       )
     }
   }
@@ -101,9 +123,7 @@ function App() {
       } catch (err) {
         if (active) {
           setLibraryError(
-            err instanceof Error
-              ? err.message
-              : 'Failed to load saved documents.',
+            err instanceof Error ? err.message : t('loadFailed'),
           )
         }
       } finally {
@@ -126,12 +146,16 @@ function App() {
     setQuestion('')
     setAnswerResult(null)
     setError('')
-    setIndexedMessage(`Selected saved document: ${document.fileName}`)
+    setIndexedMessage(
+      language === 'he'
+        ? `נבחר מסמך שמור: ${document.fileName}`
+        : `Selected saved document: ${document.fileName}`,
+    )
   }
 
   async function handleDeleteDocument(document: DocumentSummary) {
     const confirmed = window.confirm(
-      `Are you sure you want to delete "${document.fileName}"?`,
+      t('deleteConfirmation', { fileName: document.fileName }),
     )
 
     if (!confirmed) {
@@ -158,9 +182,7 @@ function App() {
       }
     } catch (err) {
       setLibraryError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to delete the saved document.',
+        err instanceof Error ? err.message : t('deleteFailed'),
       )
     } finally {
       setDeletingDocumentId('')
@@ -177,15 +199,13 @@ function App() {
 
     if (!isSupportedFile(file)) {
       setSelectedFile(null)
-      setError(
-        'Please select a PDF, TXT, Markdown, or DOCX file.',
-      )
+      setError(t('unsupportedFile'))
       return
     }
 
     if (file.size > MAX_FILE_SIZE) {
       setSelectedFile(null)
-      setError('The file is too large. Maximum file size is 5 MB.')
+      setError(t('fileTooLarge'))
       return
     }
 
@@ -197,15 +217,13 @@ function App() {
 
       setDocumentId(result.documentId)
       setIndexedMessage(
-        `Document indexed successfully (${result.chunksCount} chunks).`,
+        t('indexedMessage', { count: result.chunksCount }),
       )
 
       await refreshDocuments()
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to upload and index the document.',
+        err instanceof Error ? err.message : t('uploadFailed'),
       )
     } finally {
       setUploading(false)
@@ -227,7 +245,7 @@ function App() {
       setAnswerResult(result)
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Failed to get an answer.',
+        err instanceof Error ? err.message : t('askFailed'),
       )
     } finally {
       askingRef.current = false
@@ -236,160 +254,233 @@ function App() {
   }
 
   return (
-    <div className="app">
+    <div
+      className="app"
+      lang={language}
+      dir={language === 'he' ? 'rtl' : 'ltr'}
+    >
       <header className="topbar">
         <a className="brand" href="/">
           <span className="brand-icon" aria-hidden="true">
             D
           </span>
-          <span>DocuMind</span>
+          <span>{t('brand')}</span>
         </a>
 
-        <span className="status">
-          <span className="status-dot" aria-hidden="true" />
-          AI Document Intelligence
-        </span>
+        <div className="header-actions">
+          <span className="status">
+            <span className="status-dot" aria-hidden="true" />
+            {t('status')}
+          </span>
+
+          <button
+            className="language-button"
+            type="button"
+            onClick={() =>
+              setLanguage((current) =>
+                current === 'he' ? 'en' : 'he',
+              )
+            }
+            aria-label={
+              language === 'he'
+                ? 'Switch to English'
+                : 'החלפה לעברית'
+            }
+          >
+            {t('language')}
+          </button>
+        </div>
       </header>
 
       <main className="main-content">
         <section className="intro">
-          <p className="eyebrow">YOUR DOCUMENTS, UNDERSTOOD</p>
+          <p className="eyebrow">{t('eyebrow')}</p>
+
           <h1>
-            Understand your documents.
+            {t('titleFirst')}
             <br />
-            <span>Ask better questions.</span>
+            <span>{t('titleSecond')}</span>
           </h1>
-          <p className="subtitle">
-            Upload a document, explore its content, and get answers grounded
-            in the information that matters.
-          </p>
+
+          <p className="subtitle">{t('subtitle')}</p>
         </section>
 
-        <section className="panel library-panel">
-          <div className="panel-heading">
-            <span className="step-number">00</span>
-            <div>
-              <h2>Saved documents</h2>
-              <p>Select a previously indexed document</p>
-            </div>
+        {error && (
+          <div className="error-message" role="alert">
+            <strong>{t('errorHeading')}</strong>
+            <p>{error}</p>
           </div>
-
-          {loadingDocuments ? (
-            <p className="hint">Loading saved documents...</p>
-          ) : documents.length > 0 ? (
-            <div className="document-list">
-              {documents.map((document) => (
-                <div className="document-item-wrapper" key={document.id}>
-                  <button
-                    className={`document-item ${
-                      documentId === document.id ? 'selected' : ''
-                    }`}
-                    type="button"
-                    disabled={
-                      uploading || asking || Boolean(deletingDocumentId)
-                    }
-                    aria-pressed={documentId === document.id}
-                    onClick={() => handleSelectDocument(document)}
-                  >
-                    <span className="document-name">
-                      {document.fileName}
-                    </span>
-                    <span className="document-date">
-                      {Number.isNaN(Date.parse(document.createdAt))
-                        ? 'Date unavailable'
-                        : new Date(
-                            document.createdAt,
-                          ).toLocaleDateString()}
-                    </span>
-                  </button>
-
-                  <button
-                    className="delete-document-button"
-                    type="button"
-                    aria-label={`Delete ${document.fileName}`}
-                    disabled={
-                      uploading || asking || Boolean(deletingDocumentId)
-                    }
-                    onClick={() => void handleDeleteDocument(document)}
-                  >
-                    {deletingDocumentId === document.id
-                      ? 'Deleting...'
-                      : 'Delete'}
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="hint">
-              No saved documents yet. Upload a document to get started.
-            </p>
-          )}
-
-          {libraryError && (
-            <p className="library-error" role="status">
-              {libraryError}{' '}
-              <button type="button" onClick={() => void refreshDocuments()}>
-                Retry
-              </button>
-            </p>
-          )}
-        </section>
+        )}
 
         <section className="workspace">
-          <div className="panel upload-panel">
+          {/* Documents */}
+          <div className="panel documents-panel">
             <div className="panel-heading">
               <span className="step-number">01</span>
               <div>
-                <h2>Upload a document</h2>
-                <p>Upload a document to get started</p>
+                <h2>{t('libraryTitle')}</h2>
+                <p>{t('libraryDescription')}</p>
               </div>
             </div>
 
-            <label className="upload-area">
-              <span className="upload-icon" aria-hidden="true">
-                ↑
-              </span>
-              <strong>
-                {selectedFile ? selectedFile.name : 'Choose a document'}
-              </strong>
-              <span>PDF, TXT, Markdown, or DOCX · Maximum 5 MB</span>
-              <input
-                type="file"
-                accept={ACCEPTED_FILE_TYPES}
-                disabled={uploading || asking}
-                onChange={(event) => {
-                  void handleFileChange(event.target.files?.[0])
-                  event.currentTarget.value = ''
-                }}
-              />
-            </label>
+            {loadingDocuments ? (
+              <p className="hint">{t('loadingDocuments')}</p>
+            ) : documents.length > 0 ? (
+              <>
+                <div className="document-list">
+                  {visibleDocuments.map((document) => (
+                    <div className="document-item-wrapper" key={document.id}>
+                      <button
+                        className={`document-item ${
+                          documentId === document.id ? 'selected' : ''
+                        }`}
+                        type="button"
+                        disabled={
+                          uploading || asking || Boolean(deletingDocumentId)
+                        }
+                        aria-pressed={documentId === document.id}
+                        onClick={() => handleSelectDocument(document)}
+                      >
+                        <span className="document-name">
+                          {document.fileName}
+                        </span>
 
-            <p className="hint">
-              {uploading
-                ? 'Uploading and indexing your document...'
-                : indexedMessage ||
-                  'Your document will be processed for searching and Q&A.'}
-            </p>
+                        <span className="document-date">
+                          {Number.isNaN(Date.parse(document.createdAt))
+                            ? t('dateUnavailable')
+                            : new Date(
+                                document.createdAt,
+                              ).toLocaleDateString(
+                                language === 'he' ? 'he-IL' : 'en-US',
+                              )}
+                        </span>
+                      </button>
+
+                      <button
+                        className="delete-document-button"
+                        type="button"
+                        aria-label={`${t('delete')} ${document.fileName}`}
+                        title={t('delete')}
+                        disabled={
+                          uploading || asking || Boolean(deletingDocumentId)
+                        }
+                        onClick={() => void handleDeleteDocument(document)}
+                      >
+                        {deletingDocumentId === document.id ? (
+                          <span className="delete-loading">...</span>
+                        ) : (
+                          <svg
+                            viewBox="0 0 24 24"
+                            width="16"
+                            height="16"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                          >
+                            <path d="M3 6h18" />
+                            <path d="M8 6V4h8v2" />
+                            <path d="m19 6-1 14H6L5 6" />
+                            <path d="M10 11v5M14 11v5" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {documents.length > INITIAL_VISIBLE_DOCUMENTS && (
+                  <button
+                    className="library-toggle-button"
+                    type="button"
+                    aria-expanded={showAllDocuments}
+                    onClick={() =>
+                      setShowAllDocuments((current) => !current)
+                    }
+                  >
+                    {showAllDocuments
+                      ? language === 'he'
+                        ? 'הצג פחות'
+                        : 'Show less'
+                      : language === 'he'
+                        ? `הצג את כל ${documents.length} המסמכים`
+                        : `Show all ${documents.length} documents`}
+
+                    <span aria-hidden="true">
+                      {showAllDocuments ? '↑' : '↓'}
+                    </span>
+                  </button>
+                )}
+              </>
+            ) : (
+              <p className="hint">{t('noDocuments')}</p>
+            )}
+
+            {libraryError && (
+              <p className="library-error" role="status">
+                {libraryError}{' '}
+                <button type="button" onClick={() => void refreshDocuments()}>
+                  {t('retry')}
+                </button>
+              </p>
+            )}
+
+            <div className="upload-section">
+              <div className="upload-section-heading">
+                <span className="upload-small-icon" aria-hidden="true">
+                  ↑
+                </span>
+                <strong>{t('uploadTitle')}</strong>
+              </div>
+
+              <label className="upload-area">
+                <strong>
+                  {selectedFile ? selectedFile.name : t('chooseDocument')}
+                </strong>
+
+                <span>{t('supportedFiles')}</span>
+
+                <input
+                  type="file"
+                  accept={ACCEPTED_FILE_TYPES}
+                  disabled={uploading || asking}
+                  onChange={(event) => {
+                    void handleFileChange(event.target.files?.[0])
+                    event.currentTarget.value = ''
+                  }}
+                />
+              </label>
+
+              <p className="hint upload-hint">
+                {uploading
+                  ? t('uploading')
+                  : indexedMessage || t('uploadHint')}
+              </p>
+            </div>
           </div>
 
+          {/* Questions */}
           <div className="panel question-panel">
             <div className="panel-heading">
               <span className="step-number">02</span>
               <div>
-                <h2>Ask your document</h2>
-                <p>Find answers in your content</p>
+                <h2>{t('questionTitle')}</h2>
+                <p>{t('questionDescription')}</p>
               </div>
             </div>
 
             <label className="question-label" htmlFor="question">
-              Your question
+              {t('yourQuestion')}
             </label>
+
             <textarea
               id="question"
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
-              placeholder="What are the main points in this document?"
-              rows={4}
+              placeholder={t('questionPlaceholder')}
+              rows={5}
               disabled={!documentId || asking}
             />
 
@@ -399,93 +490,90 @@ function App() {
               disabled={!documentId || !question.trim() || asking}
               onClick={() => void handleAsk()}
             >
-              {asking ? 'Finding an answer...' : 'Ask a question'}
+              {asking ? t('asking') : t('ask')}
               {!asking && <span aria-hidden="true">↗</span>}
             </button>
 
             <p className="hint">
               {!documentId
-                ? 'Select a saved document or upload a new one before asking a question.'
-                : 'Answers are generated from relevant passages in your document.'}
+                ? t('selectDocumentHint')
+                : t('answerHint')}
             </p>
           </div>
-        </section>
 
-        {error && (
-          <div className="error-message" role="alert">
-            <strong>Something went wrong</strong>
-            <p>{error}</p>
-          </div>
-        )}
+          {/* Answers */}
+          <section className="answer-panel">
+            <div className="answer-heading">
+              <span className="answer-icon" aria-hidden="true">
+                ✦
+              </span>
 
-        <section className="answer-panel">
-          <div className="answer-heading">
-            <span className="answer-icon" aria-hidden="true">
-              ✦
-            </span>
-            <div>
-              <h2>Answer &amp; sources</h2>
-              <p>AI-generated answers grounded in your document</p>
-            </div>
-          </div>
-
-          {asking ? (
-            <div className="empty-state" role="status">
-              <strong>Finding an answer...</strong>
-              <p>
-                The AI is searching your document and preparing a response.
-              </p>
-            </div>
-          ) : answerResult ? (
-            <div className="answer-content">
-              <h3>Answer</h3>
-              <p className="answer-text">{answerResult.answer}</p>
-
-              <h3>Relevant sources</h3>
-              {answerResult.sources.length > 0 ? (
-                <div className="sources-list">
-                  {answerResult.sources.map((source, index) => {
-                    const sourceText = getSourceText(source)
-                    const score = getSourceScore(source)
-
-                    return (
-                      <article className="source-item" key={index}>
-                        <div className="source-title">
-                          <strong>Source {index + 1}</strong>
-                          {score !== undefined && (
-                            <span>
-                              Similarity: {(score * 100).toFixed(1)}%
-                            </span>
-                          )}
-                        </div>
-                        <p>
-                          {sourceText ||
-                            'A relevant source passage was returned, but its text field is not recognized by the UI yet.'}
-                        </p>
-                      </article>
-                    )
-                  })}
-                </div>
-              ) : (
-                <p className="hint">
-                  No relevant source passages were found for this question.
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <div className="empty-icon" aria-hidden="true">
-                ◇
+              <div>
+                <h2>{t('answerHeading')}</h2>
+                <p>{t('answerDescription')}</p>
               </div>
-              <strong>Your answer will appear here</strong>
-              <p>Upload a document and ask a question to get started.</p>
             </div>
-          )}
+
+            {asking ? (
+              <div className="empty-state" role="status">
+                <strong>{t('findingAnswer')}</strong>
+                <p>{t('findingAnswerDescription')}</p>
+              </div>
+            ) : answerResult ? (
+              <div className="answer-content">
+                <h3>{t('answer')}</h3>
+                <p className="answer-text">{answerResult.answer}</p>
+
+                <h3>{t('sources')}</h3>
+
+                {answerResult.sources.length > 0 ? (
+                  <div className="sources-list">
+                    {answerResult.sources.map((source, index) => {
+                      const sourceText = getSourceText(source)
+                      const score = getSourceScore(source)
+
+                      return (
+                        <article className="source-item" key={index}>
+                          <div className="source-title">
+                            <strong>
+                              {t('source')} {index + 1}
+                            </strong>
+
+                            {score !== undefined && (
+                              <span>
+                                {t('similarity')}:{' '}
+                                {(score * 100).toFixed(1)}%
+                              </span>
+                            )}
+                          </div>
+
+                          <p>
+                            {sourceText || t('unknownSource')}
+                          </p>
+                        </article>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="hint">{t('noSources')}</p>
+                )}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <div className="empty-icon" aria-hidden="true">
+                  ◇
+                </div>
+
+                <strong>{t('emptyAnswer')}</strong>
+                <p>{t('emptyAnswerDescription')}</p>
+              </div>
+            )}
+          </section>
         </section>
 
         <footer>
-          <span>DocuMind</span>
-          <span>Powered by Gemini · Retrieval-Augmented Generation</span>
+          <span>{t('brand')}</span>
+          <span>{t('footer')}</span>
         </footer>
       </main>
     </div>
