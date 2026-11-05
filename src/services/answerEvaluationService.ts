@@ -3,6 +3,9 @@ export interface AnswerEvaluationCase {
   answer: string;
   expectedFacts: string[];
   shouldAbstain: boolean;
+
+  // Optional accepted alternatives for specific expected facts.
+  expectedFactAliases?: Record<string, string[]>;
 }
 
 export interface AnswerCaseResult {
@@ -26,20 +29,35 @@ export interface AnswerEvaluationReport {
 const FALLBACK_ANSWER = "אין מספיק מידע במסמך כדי לענות על השאלה.";
 
 function normalizeText(value: string): string {
-  return value.trim().toLowerCase();
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function isAbstention(answer: string): boolean {
   return normalizeText(answer) === normalizeText(FALLBACK_ANSWER);
 }
 
+function factIsPresent(
+  answer: string,
+  fact: string,
+  aliases: string[] = [],
+): boolean {
+  const normalizedAnswer = normalizeText(answer);
+
+  const acceptedVariants = [fact, ...aliases];
+
+  return acceptedVariants.some((variant) =>
+    normalizedAnswer.includes(normalizeText(variant)),
+  );
+}
+
 function evaluateCase(evaluationCase: AnswerEvaluationCase): AnswerCaseResult {
   const abstained = isAbstention(evaluationCase.answer);
 
-  const missingFacts = evaluationCase.expectedFacts.filter(
-    (fact) =>
-      !normalizeText(evaluationCase.answer).includes(normalizeText(fact)),
-  );
+  const missingFacts = evaluationCase.expectedFacts.filter((fact) => {
+    const aliases = evaluationCase.expectedFactAliases?.[fact] ?? [];
+
+    return !factIsPresent(evaluationCase.answer, fact, aliases);
+  });
 
   const factCoverage =
     evaluationCase.expectedFacts.length === 0

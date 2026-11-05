@@ -39,6 +39,43 @@ describe("answerEvaluationService", () => {
       });
     });
 
+    it("should recognize an explicitly configured alternative phrasing", () => {
+      const report = evaluateAnswers([
+        {
+          id: "manager-approval",
+          answer: "Employees need immediate supervisor approval.",
+          expectedFacts: ["direct manager approval"],
+          expectedFactAliases: {
+            "direct manager approval": ["immediate supervisor approval"],
+          },
+          shouldAbstain: false,
+        },
+      ]);
+
+      expect(report.results[0]).toMatchObject({
+        isCorrect: true,
+        missingFacts: [],
+        factCoverage: 1,
+      });
+    });
+
+    it("should not recognize an alternative phrasing that was not configured", () => {
+      const report = evaluateAnswers([
+        {
+          id: "manager-approval",
+          answer: "Employees need immediate supervisor approval.",
+          expectedFacts: ["direct manager approval"],
+          shouldAbstain: false,
+        },
+      ]);
+
+      expect(report.results[0]).toMatchObject({
+        isCorrect: false,
+        missingFacts: ["direct manager approval"],
+        factCoverage: 0,
+      });
+    });
+
     it("should identify a correct abstention for an unanswerable question", () => {
       const report = evaluateAnswers([
         {
