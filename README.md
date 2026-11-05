@@ -1,6 +1,6 @@
 # DocuMind — AI Document Intelligence
 
-A full-stack document intelligence application built with TypeScript, Express, React, and Google Gemini. DocuMind extracts text from supported documents, generates AI summaries through its API, performs semantic search, and answers questions grounded in relevant document passages.
+A full-stack document intelligence application built with TypeScript, Express, React, and Google Gemini. DocuMind extracts text from supported documents, generates AI summaries through its API, performs semantic search, and answers questions grounded in relevant document passages using Retrieval-Augmented Generation (RAG).
 
 ## Features
 
@@ -16,10 +16,10 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - Retrieval-Augmented Generation (RAG) for document-grounded question answering.
 - Context expansion for RAG: includes adjacent document chunks around semantically retrieved passages, removes duplicates, and preserves document order before answer generation.
 - Prompt-injection mitigation through instructions that treat document content as untrusted data rather than executable instructions.
-- Source-grounded answer generation with instructions to include all relevant facts and process steps without omitting essential information.
+- Source-grounded answer generation with instructions to include relevant facts and process steps while avoiding unsupported claims.
 - Relevant source passages and similarity scores in search and Q&A responses.
 - Persistent local JSON storage for indexed documents.
-- Document deletion from persistent storage.
+- Document listing and deletion through the API.
 - Upload size limit of 5 MB and input validation.
 - Validation of uploaded file content, including invalid PDF signatures, malformed or password-protected PDFs, malformed DOCX files, invalid UTF-8 text, and empty documents.
 - API error handling and automated tests.
@@ -78,7 +78,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 5. **Retrieval:** A user question is compared with stored document chunks using semantic search.
 6. **Context expansion and answer generation:** Adjacent chunks are added around retrieved passages, with duplicates removed and document order preserved. The expanded context is sent to Gemini to generate a grounded answer. Prompt instructions emphasize completeness while preventing unsupported claims.
 7. **Sources:** The API returns the answer alongside relevant source passages and similarity scores.
-8. **Evaluation:** Separate retrieval and answer evaluation pipelines measure retrieval quality and generated answer quality. Retrieval metrics include Recall@K, Precision@K, and the false-positive rate for unanswerable queries. Answer metrics include answer accuracy, expected-fact coverage, and abstention accuracy. Evaluation uses real Gemini embeddings and answer generation, while automated unit tests validate metric calculations deterministically. The real-API answer evaluation script currently runs four selected cases from the larger dataset.
+8. **Evaluation:** Separate retrieval and answer evaluation pipelines measure retrieval quality and generated answer quality. Retrieval metrics include Recall@K, Precision@K, and the false-positive rate for unanswerable queries. Answer metrics include answer accuracy, expected-fact coverage, and abstention accuracy. Automated tests validate retrieval behavior, evaluation metrics, and answer evaluation logic. Real-API evaluation uses Google Gemini embeddings and answer generation. The answer evaluation script currently runs four selected cases from the larger dataset.
 9. **Deletion:** Users can delete saved documents through the frontend. The backend removes the corresponding document from persistent storage.
 
 ## API Endpoints
@@ -150,27 +150,57 @@ npm --prefix client run dev
 
 Open the local URL printed by Vite in the terminal.
 
-### 5. Run backend tests and type checking
+## Testing and Validation
+
+The project includes automated backend and frontend tests.
+
+### Backend tests
+
+Run from the repository root:
 
 ```bash
-npm test
-npx tsc --noEmit
+npx vitest run src --exclude "client/**"
 ```
 
-### 6. Run frontend tests and build
+### Frontend tests
+
+Run from the repository root:
 
 ```bash
 npm --prefix client test
-npm --prefix client run build
 ```
 
-### 7. Run retrieval evaluation
+### TypeScript validation
+
+```bash
+npx tsc --noEmit
+```
+
+### Current test results
+
+The latest verified test run includes:
+
+- **Backend:** 136 tests passed.
+- **Frontend:** 27 tests passed.
+- **Total:** 163 tests passed across 16 test files.
+
+These results represent the latest recorded test run and may change as the project evolves.
+
+## Evaluation
+
+### Retrieval evaluation
+
+Run:
 
 ```bash
 npm run evaluate:retrieval
 ```
 
-### 8. Run answer evaluation
+The retrieval evaluation pipeline measures retrieval quality using Recall@K, Precision@K, and Unanswerable False Positive Rate. It supports configurable Top-K values and reports retrieved chunk indexes and similarity scores.
+
+### Answer evaluation
+
+Run:
 
 ```bash
 npm run evaluate:answers
@@ -194,7 +224,9 @@ The evaluation requires a valid `GEMINI_API_KEY` and makes external API calls. T
 
 ## Project Status
 
-This repository contains a working full-stack prototype with document indexing, semantic retrieval, grounded question answering, document management, and retrieval and answer evaluation pipelines. Features listed under **Planned** are not represented as implemented functionality.
+This repository contains a working full-stack prototype with document indexing, semantic retrieval, grounded question answering, document management, and retrieval and answer evaluation pipelines.
+
+The project currently includes 163 passing automated tests across backend and frontend components. Features listed under **Planned** are not represented as implemented functionality.
 
 ## License
 
