@@ -7,7 +7,6 @@ A full-stack document intelligence application built with TypeScript, Express, R
 ### Implemented
 
 **Backend**
-
 - PDF, TXT, Markdown, and DOCX text extraction.
 - AI-powered document summarization using Google Gemini.
 - Text chunking and embedding generation.
@@ -21,7 +20,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - Persistent local JSON storage for indexed documents.
 - Document listing and deletion through the API.
 - Upload size limit of 5 MB and input validation.
-- Validation of uploaded file content, including invalid PDF signatures, malformed or password-protected PDFs, malformed DOCX files, invalid UTF-8 text, and empty documents.
+- Validation of uploaded file content, including invalid PDF signatures, malformed or password-protected PDFs, malformed DOCX files, DOCX ZIP archive entry-count and uncompressed-size limits, invalid UTF-8 text, and empty documents.
 - API error handling and automated tests.
 - Retrieval evaluation framework with Recall@K, Precision@K, and Unanswerable False Positive Rate metrics.
 - Separate evaluation reporting for answerable and unanswerable queries, including per-case results and aggregate metrics.
@@ -35,7 +34,6 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - Limited real-API answer evaluation configured to run four selected cases to control external API usage.
 
 **Frontend**
-
 - React and TypeScript user interface.
 - Bilingual interface with Hebrew and English language support.
 - Responsive three-panel workspace layout, adapting to desktop, tablet, and mobile screens.
@@ -59,6 +57,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - OCR support for scanned documents.
 - User accounts and access permissions.
 - Conversation history.
+- Warn users when uploading a document with an existing filename, allowing them to replace it or keep both.
 
 ## Technology Stack
 
@@ -67,9 +66,9 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - **Backend:** Express
 - **Frontend:** React, Vite
 - **AI:** Google Gemini API and embedding models
-- **Document processing:** `pdf-parse`, `mammoth`, custom text extraction and chunking
+- **Document processing:** `pdf-parse`, `mammoth`, `yauzl`, custom text extraction and chunking
 - **Uploads:** Multer
-- **Testing:** Vitest, Supertest, React Testing Library
+- **Testing:** Vitest, Supertest, React Testing Library, JSZip
 
 ## Architecture
 
@@ -85,16 +84,16 @@ A full-stack document intelligence application built with TypeScript, Express, R
 
 ## API Endpoints
 
-| Method | Endpoint                     | Description                                            |
-| ------ | ---------------------------- | ------------------------------------------------------ |
-| GET    | `/api/health`                | Check server status                                    |
-| GET    | `/api/documents`             | List previously indexed documents                      |
-| POST   | `/api/documents/summary`     | Summarize submitted text                               |
-| POST   | `/api/documents/upload`      | Upload a supported document and return a summary       |
-| POST   | `/api/documents/index`       | Extract, chunk, embed, and persist a document          |
-| POST   | `/api/documents/search`      | Search a newly uploaded or previously indexed document |
-| POST   | `/api/documents/ask`         | Answer a question about an indexed document using RAG  |
-| DELETE | `/api/documents/:documentId` | Delete an indexed document from persistent storage     |
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/health` | Check server status |
+| GET | `/api/documents` | List previously indexed documents |
+| POST | `/api/documents/summary` | Summarize submitted text |
+| POST | `/api/documents/upload` | Upload a supported document and return a summary |
+| POST | `/api/documents/index` | Extract, chunk, embed, and persist a document |
+| POST | `/api/documents/search` | Search a newly uploaded or previously indexed document |
+| POST | `/api/documents/ask` | Answer a question about an indexed document using RAG |
+| DELETE | `/api/documents/:documentId` | Delete an indexed document from persistent storage |
 
 ### API Notes
 
@@ -182,9 +181,9 @@ npx tsc --noEmit
 
 The latest verified test run includes:
 
-- **Backend:** 136 tests passed.
+- **Backend:** 144 tests passed.
 - **Frontend:** 28 tests passed.
-- **Total:** 164 tests passed across 16 test files.
+- **Total:** 172 tests passed across 16 test files.
 
 These results represent the latest recorded test run and may change as the project evolves.
 
@@ -228,8 +227,12 @@ The evaluation requires a valid `GEMINI_API_KEY` and makes external API calls. T
 
 This repository contains a working full-stack prototype with document indexing, semantic retrieval, grounded question answering, document management, and retrieval and answer evaluation pipelines.
 
-The project currently includes 164 passing automated tests across backend and frontend components. Features listed under **Planned** are not represented as implemented functionality.
+The project currently includes 172 passing automated tests across backend and frontend components. Features listed under **Planned** are not represented as implemented functionality.
 
 ## License
 
 No open-source license has been selected for this project yet.
+
+## Project Documentation
+
+The `docs/` directory contains the Hebrew system specification, documenting the project's requirements, architecture, API design, security considerations, testing strategy, and development roadmap.

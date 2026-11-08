@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+﻿import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   getTextMock,
@@ -91,6 +91,20 @@ describe("extractTextFromPdf", () => {
     },
   );
 
+  it("should reject a malformed file with a PDF signature", async () => {
+    getTextMock.mockRejectedValue(
+      new InvalidPDFException("Invalid PDF structure"),
+    );
+
+    await expect(
+      extractTextFromPdf(Buffer.from("%PDF-1.7\nThis is not a real PDF")),
+    ).rejects.toThrow("Invalid PDF file");
+
+    expect(PDFParseMock).toHaveBeenCalledOnce();
+    expect(getTextMock).toHaveBeenCalledOnce();
+    expect(destroyMock).toHaveBeenCalledOnce();
+  });
+
   it("should propagate an unexpected text extraction error", async () => {
     const unexpectedError = new Error("Unexpected parser failure");
     getTextMock.mockRejectedValue(unexpectedError);
@@ -102,6 +116,16 @@ describe("extractTextFromPdf", () => {
     expect(destroyMock).toHaveBeenCalledOnce();
   });
 
+  it("should reject a buffer shorter than the PDF signature", async () => {
+    const buffer = Buffer.from("%PDF");
+
+    await expect(extractTextFromPdf(buffer)).rejects.toThrow(
+      "Invalid PDF file",
+    );
+
+    expect(PDFParseMock).not.toHaveBeenCalled();
+    expect(destroyMock).not.toHaveBeenCalled();
+  });
   it("should reject a buffer that is not a PDF file", async () => {
     const buffer = Buffer.from("This is not a PDF file");
 

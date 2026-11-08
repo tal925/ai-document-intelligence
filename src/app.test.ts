@@ -219,6 +219,22 @@ describe("POST /api/documents/upload", () => {
     });
   });
 
+  it("should return 413 when the uploaded file exceeds 5 MB", async () => {
+    const largeFile = Buffer.alloc(5 * 1024 * 1024 + 1);
+
+    const response = await request(app)
+      .post("/api/documents/upload")
+      .attach("file", largeFile, {
+        filename: "large.txt",
+        contentType: "text/plain",
+      });
+
+    expect(response.status).toBe(413);
+    expect(response.body).toEqual({
+      success: false,
+      error: "File size must not exceed 5 MB",
+    });
+  });
   it("should return 400 when the file type is unsupported", async () => {
     const response = await request(app)
       .post("/api/documents/upload")
