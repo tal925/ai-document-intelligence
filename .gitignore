@@ -6,3 +6,7 @@ dist/
 data/
 task-management.pdf
 tmp/
+# Local test files and document backups
+docs/AI_Document_Intelligence_Specification_HE.backup.docx
+hebrew-test.txt
+multi-section-test.txt
