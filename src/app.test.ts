@@ -637,6 +637,32 @@ describe("POST /api/documents/index", () => {
     expect(saveDocument).toHaveBeenCalledWith(embeddedChunks, "sample.pdf");
   });
 
+  it("should preserve a Hebrew filename when indexing a PDF", async () => {
+    const embeddedChunks = [
+      {
+        index: 0,
+        content: "A valid PDF document.",
+        embedding: [0.8, 0.2],
+      },
+    ];
+
+    const hebrewFileName = "תמר לב - פיתוח תוכנה.pdf";
+
+    vi.mocked(extractTextFromPdf).mockResolvedValue("A valid PDF document.");
+    vi.mocked(prepareChunks).mockResolvedValue(embeddedChunks);
+    vi.mocked(saveDocument).mockReturnValue("hebrew-document-id");
+
+    const response = await request(app)
+      .post("/api/documents/index")
+      .attach("file", Buffer.from("fake PDF content"), {
+        filename: hebrewFileName,
+        contentType: "application/pdf",
+      });
+
+    expect(response.status).toBe(201);
+    expect(saveDocument).toHaveBeenCalledWith(embeddedChunks, hebrewFileName);
+  });
+
   it("should index a TXT file successfully", async () => {
     const embeddedChunks = [
       {

@@ -26,6 +26,7 @@ app.use(express.json());
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
+  defParamCharset: "utf8",
 });
 
 // Handle file upload errors before the route handler
