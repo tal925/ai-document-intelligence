@@ -1,5 +1,4 @@
-
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   askDocument,
   deleteDocument,
@@ -56,21 +55,29 @@ function isSupportedFile(file: File): boolean {
 
 function App() {
   const [language, setLanguage] = useState<Language>('he')
+const languageRef = useRef(language)
 
-  function t(
-    key: TranslationKey,
-    values?: Record<string, string | number>,
-  ): string {
-    let result = translate(language, key)
+useEffect(() => {
+  languageRef.current = language
+}, [language])
 
-    if (values) {
-      for (const [placeholder, value] of Object.entries(values)) {
-        result = result.replace(`{${placeholder}}`, String(value))
+  const t = useCallback(
+    (
+      key: TranslationKey,
+      values?: Record<string, string | number>,
+    ): string => {
+      let result = translate(language, key)
+
+      if (values) {
+        for (const [placeholder, value] of Object.entries(values)) {
+          result = result.replace(`{${placeholder}}`, String(value))
+        }
       }
-    }
 
-    return result
-  }
+      return result
+    },
+    [language],
+  )
 
   const [question, setQuestion] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -102,7 +109,9 @@ function App() {
       setDocuments(result.documents)
     } catch (err) {
       setLibraryError(
-        err instanceof Error ? err.message : t('loadFailed'),
+       err instanceof Error
+       ? err.message
+       : translate(languageRef.current, 'loadFailed'),
       )
     }
   }
@@ -123,7 +132,9 @@ function App() {
       } catch (err) {
         if (active) {
           setLibraryError(
-            err instanceof Error ? err.message : t('loadFailed'),
+            err instanceof Error
+              ? err.message
+              : translate(languageRef.current, 'loadFailed'),
           )
         }
       } finally {

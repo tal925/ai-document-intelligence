@@ -14,7 +14,7 @@ describe("documentStore persistence", () => {
 
     try {
       const storeModule = pathToFileURL(
-        resolve("src/services/documentStore.ts"),
+        resolve("server/src/services/documentStore.ts"),
       ).href;
 
       const saveResult = spawnSync(
@@ -93,7 +93,7 @@ describe("documentStore persistence", () => {
 
     try {
       const storeModule = pathToFileURL(
-        resolve("src/services/documentStore.ts"),
+        resolve("server/src/services/documentStore.ts"),
       ).href;
 
       const deleteResult = spawnSync(

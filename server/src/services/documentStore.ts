@@ -12,7 +12,7 @@ export interface StoredDocument {
 }
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
-const dataDirectory = join(currentDirectory, "../../data");
+const dataDirectory = join(currentDirectory, "../../../data");
 const storageFile =
   process.env.DOCUMENT_STORE_PATH ?? join(dataDirectory, "documents.json");
 

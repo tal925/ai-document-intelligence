@@ -30,7 +30,7 @@ describe("extractTextFromFile", () => {
 
   it("should extract text from a DOCX file", async () => {
     const buffer = fs.readFileSync(
-      path.resolve("src/services/fixtures/test-document.docx"),
+      path.resolve("server/src/services/fixtures/test-document.docx"),
     );
 
     await expect(extractTextFromFile(buffer, "docx")).resolves.toBe(

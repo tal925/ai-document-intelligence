@@ -1,4 +1,4 @@
-﻿# DocuMind — AI Document Intelligence
+# DocuMind — AI Document Intelligence
 
 A full-stack document intelligence application built with TypeScript, Express, React, and Google Gemini. DocuMind extracts text from supported documents, generates AI summaries through its API, performs semantic search, and answers questions grounded in relevant document passages using Retrieval-Augmented Generation (RAG).
 
@@ -7,6 +7,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 ### Implemented
 
 **Backend**
+
 - PDF, TXT, Markdown, and DOCX text extraction.
 - AI-powered document summarization using Google Gemini.
 - Text chunking and embedding generation.
@@ -34,6 +35,7 @@ A full-stack document intelligence application built with TypeScript, Express, R
 - Limited real-API answer evaluation configured to run four selected cases to control external API usage.
 
 **Frontend**
+
 - React and TypeScript user interface.
 - Bilingual interface with Hebrew and English language support.
 - Responsive three-panel workspace layout, adapting to desktop, tablet, and mobile screens.
@@ -72,6 +74,28 @@ A full-stack document intelligence application built with TypeScript, Express, R
 
 ## Architecture
 
+### Project Structure
+
+```text
+ai-learning-project/
+├── client/                  # Frontend – React and Vite
+├── server/                  # Backend – Node.js and Express
+│   └── src/
+│       ├── scripts/         # Evaluation scripts
+│       ├── services/        # Backend services
+│       ├── app.ts
+│       ├── app.test.ts
+│       ├── index.ts
+│       └── server.ts
+├── data/                    # Local document storage
+├── docs/                    # Project documentation
+├── .env                     # Environment variables
+├── package.json
+├── package-lock.json
+└── README.md
+```
+
+### Application Workflow
 1. **Upload:** The frontend accepts PDF, TXT, Markdown, and DOCX files and sends them to the backend for indexing.
 2. **Extraction:** The backend extracts text from the supported document format.
 3. **Chunking and embeddings:** Text is split into chunks, and embeddings are generated.
@@ -84,16 +108,16 @@ A full-stack document intelligence application built with TypeScript, Express, R
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/health` | Check server status |
-| GET | `/api/documents` | List previously indexed documents |
-| POST | `/api/documents/summary` | Summarize submitted text |
-| POST | `/api/documents/upload` | Upload a supported document and return a summary |
-| POST | `/api/documents/index` | Extract, chunk, embed, and persist a document |
-| POST | `/api/documents/search` | Search a newly uploaded or previously indexed document |
-| POST | `/api/documents/ask` | Answer a question about an indexed document using RAG |
-| DELETE | `/api/documents/:documentId` | Delete an indexed document from persistent storage |
+| Method | Endpoint                     | Description                                            |
+| ------ | ---------------------------- | ------------------------------------------------------ |
+| GET    | `/api/health`                | Check server status                                    |
+| GET    | `/api/documents`             | List previously indexed documents                      |
+| POST   | `/api/documents/summary`     | Summarize submitted text                               |
+| POST   | `/api/documents/upload`      | Upload a supported document and return a summary       |
+| POST   | `/api/documents/index`       | Extract, chunk, embed, and persist a document          |
+| POST   | `/api/documents/search`      | Search a newly uploaded or previously indexed document |
+| POST   | `/api/documents/ask`         | Answer a question about an indexed document using RAG  |
+| DELETE | `/api/documents/:documentId` | Delete an indexed document from persistent storage     |
 
 ### API Notes
 
@@ -119,7 +143,7 @@ From the repository root:
 ```bash
 npm install
 npm --prefix client install
-```
+````
 
 ### 2. Configure environment variables
 
@@ -132,7 +156,7 @@ Do not commit `.env` or expose your API key.
 From the repository root:
 
 ```bash
-npx tsx src/server.ts
+npx tsx server/src/server.ts
 ```
 
 The backend runs on port `3000`.
@@ -160,7 +184,7 @@ The project includes automated backend and frontend tests.
 Run from the repository root:
 
 ```bash
-npx vitest run src --exclude "client/**"
+npm test
 ```
 
 ### Frontend tests
@@ -174,7 +198,8 @@ npm --prefix client test
 ### TypeScript validation
 
 ```bash
-npx tsc --noEmit
+npm run typecheck:server
+npm --prefix client run build
 ```
 
 ### Current test results
@@ -209,7 +234,7 @@ npm run evaluate:answers
 
 This command runs a limited answer evaluation using four selected cases from the evaluation dataset. It uses real Google Gemini embeddings and answer generation to measure answer accuracy, expected-fact coverage, and abstention accuracy.
 
-The evaluation requires a valid `GEMINI_API_KEY` and makes external API calls. The selected cases are configured in `src/scripts/evaluateAnswers.ts`.
+The evaluation requires a valid `GEMINI_API_KEY` and makes external API calls. The selected cases are configured in `server/src/scripts/evaluateAnswers.ts`.
 
 ## Storage and Limitations
 
