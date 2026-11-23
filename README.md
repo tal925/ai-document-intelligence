@@ -212,6 +212,25 @@ The latest verified test run includes:
 
 These results represent the latest recorded test run and may change as the project evolves.
 
+### Manual End-to-End Testing
+
+Manual testing was performed through the running application.
+
+Verified scenarios:
+
+- Uploaded PDF and DOCX documents successfully.
+- Confirmed uploaded documents appear in the document library.
+- Verified document count updates correctly.
+- Deleted documents successfully.
+- Tested document question answering in Hebrew and English.
+- Verified cross-lingual retrieval in both directions:
+  - Hebrew questions on Hebrew documents.
+  - English questions on Hebrew documents.
+  - Hebrew questions on English PDF documents.
+  - English questions on English PDF documents.
+
+Some question phrasings may return an insufficient-information response, while more specific wording can retrieve the relevant information.
+
 ## Evaluation
 
 ### Retrieval evaluation
